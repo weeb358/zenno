@@ -1,0 +1,363 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:zenno/widgets/gaming_widgets.dart';
+import 'package:zenno/src/providers.dart';
+
+class AdminEditGameScreen extends ConsumerStatefulWidget {
+  final String gameId;
+
+  const AdminEditGameScreen({required this.gameId, super.key});
+
+  @override
+  ConsumerState<AdminEditGameScreen> createState() => _AdminEditGameScreenState();
+}
+
+class _AdminEditGameScreenState extends ConsumerState<AdminEditGameScreen> {
+  final _nameController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _systemRequirementsController = TextEditingController();
+  final _publishedDateController = TextEditingController();
+  final _developerController = TextEditingController();
+  final _priceController = TextEditingController();
+  final _categoryController = TextEditingController();
+  final _bannerUrlController = TextEditingController();
+
+  bool _loadedGame = false;
+  XFile? _selectedImage;
+  bool _isUploading = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descriptionController.dispose();
+    _systemRequirementsController.dispose();
+    _publishedDateController.dispose();
+    _developerController.dispose();
+    _priceController.dispose();
+    _categoryController.dispose();
+    _bannerUrlController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    Navigator.pop(context);
+
+    PermissionStatus status;
+    if (source == ImageSource.camera) {
+      status = await Permission.camera.request();
+    } else {
+      status = await Permission.photos.request();
+      if (!status.isGranted) {
+        status = await Permission.storage.request();
+      }
+    }
+
+    if (status.isPermanentlyDenied) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            backgroundColor: kSteamDark,
+            title: Text('Permission Required', style: GoogleFonts.rajdhani(color: kSteamAccent, fontWeight: FontWeight.w800)),
+            content: Text(
+              'Please enable ${source == ImageSource.camera ? 'camera' : 'photo library'} access in your device settings.',
+              style: GoogleFonts.rajdhani(color: kSteamText, fontSize: 13),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel', style: GoogleFonts.rajdhani(color: kSteamSubtext))),
+              TextButton(onPressed: () { Navigator.pop(context); openAppSettings(); }, child: Text('Open Settings', style: GoogleFonts.rajdhani(color: kSteamAccent, fontWeight: FontWeight.w700))),
+            ],
+          ),
+        );
+      }
+      return;
+    }
+
+    if (!status.isGranted) return;
+
+    final picked = await ImagePicker().pickImage(source: source, imageQuality: 85, maxWidth: 1280);
+    if (picked != null && mounted) {
+      setState(() => _selectedImage = picked);
+    }
+  }
+
+  void _showImagePickerSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: kSteamDark,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: kSteamMed, borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 16),
+            Text('Select Image', style: GoogleFonts.rajdhani(color: kSteamText, fontSize: 16, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined, color: kSteamAccent),
+              title: Text('Choose from Gallery', style: GoogleFonts.rajdhani(color: kSteamText, fontSize: 14, fontWeight: FontWeight.w600)),
+              onTap: () => _pickImage(ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined, color: kSteamAccent),
+              title: Text('Take a Photo', style: GoogleFonts.rajdhani(color: kSteamText, fontSize: 14, fontWeight: FontWeight.w600)),
+              onTap: () => _pickImage(ImageSource.camera),
+            ),
+            if (_selectedImage != null)
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: kSteamRed),
+                title: Text('Remove New Image', style: GoogleFonts.rajdhani(color: kSteamRed, fontSize: 14, fontWeight: FontWeight.w600)),
+                onTap: () { Navigator.pop(context); setState(() => _selectedImage = null); },
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _fieldLabel(String label) => Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Text(label, style: GoogleFonts.rajdhani(color: kSteamAccent, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1)),
+  );
+
+  Widget _darkField(TextEditingController controller, String hint, {int maxLines = 1, Widget? suffix}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: kSteamDark,
+        border: Border.all(color: kSteamMed, width: 1.5),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: TextField(
+        controller: controller,
+        maxLines: maxLines,
+        style: GoogleFonts.rajdhani(color: kSteamText, fontSize: 13),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: GoogleFonts.rajdhani(color: kSteamSubtext, fontSize: 13),
+          border: InputBorder.none,
+          suffixIcon: suffix,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBannerPreview(String? existingUrl) {
+    if (_selectedImage != null) {
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.file(File(_selectedImage!.path), fit: BoxFit.cover),
+          Positioned(
+            top: 8, right: 8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(4)),
+              child: Text('New image — tap to change', style: GoogleFonts.rajdhani(color: Colors.white, fontSize: 11)),
+            ),
+          ),
+        ],
+      );
+    }
+    if (existingUrl != null && existingUrl.isNotEmpty) {
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.network(existingUrl, fit: BoxFit.cover, errorBuilder: (_, _, _) => _emptyBanner()),
+          Positioned(
+            top: 8, right: 8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(4)),
+              child: Text('Tap to change', style: GoogleFonts.rajdhani(color: Colors.white, fontSize: 11)),
+            ),
+          ),
+        ],
+      );
+    }
+    return _emptyBanner();
+  }
+
+  Widget _emptyBanner() => Column(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      const Icon(Icons.add_photo_alternate_outlined, color: kSteamAccent, size: 40),
+      const SizedBox(height: 10),
+      Text('Tap to Change Game Banner', style: GoogleFonts.rajdhani(color: kSteamAccent, fontSize: 13, fontWeight: FontWeight.w700)),
+      const SizedBox(height: 4),
+      Text('Gallery or Camera', style: GoogleFonts.rajdhani(color: kSteamSubtext, fontSize: 11)),
+    ],
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final isAdmin = ref.watch(isUserAdminProvider);
+
+    return isAdmin.when(
+      data: (isAdminUser) {
+        if (!isAdminUser) {
+          return Scaffold(
+            backgroundColor: kSteamBg,
+            appBar: GamingAppBar(title: 'Access Denied'),
+            body: GamingGradientBackground(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.lock, color: kSteamRed, size: 56),
+                    const SizedBox(height: 16),
+                    Text('Admin access required', style: GoogleFonts.rajdhani(color: kSteamRed, fontSize: 16, fontWeight: FontWeight.w700)),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+
+        return Scaffold(
+          backgroundColor: kSteamBg,
+          appBar: AppBar(
+            backgroundColor: kSteamDark,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: kSteamAccent),
+              onPressed: () => context.pop(),
+            ),
+            title: Text('EDIT GAME', style: GoogleFonts.rajdhani(color: kSteamAccent, fontWeight: FontWeight.w800, fontSize: 18, letterSpacing: 3)),
+            centerTitle: true,
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(1),
+              child: Container(height: 1, decoration: const BoxDecoration(gradient: LinearGradient(colors: [Colors.transparent, kSteamAccent, Colors.transparent]))),
+            ),
+          ),
+          body: GamingGradientBackground(
+            child: ParticleWidget(
+              particleCount: 8,
+              child: SafeArea(
+                child: ref.watch(gameByIdProvider(widget.gameId)).when(
+                  data: (game) {
+                    if (game != null && !_loadedGame) {
+                      _loadedGame = true;
+                      _nameController.text = (game['name'] ?? '').toString();
+                      _descriptionController.text = (game['description'] ?? '').toString();
+                      _systemRequirementsController.text = (game['systemRequirements'] ?? '').toString();
+                      _publishedDateController.text = (game['publishedDate'] ?? '').toString();
+                      _developerController.text = (game['developer'] ?? '').toString();
+                      _priceController.text = (game['price'] ?? '').toString();
+                      _categoryController.text = (game['category'] ?? '').toString();
+                      _bannerUrlController.text = (game['bannerUrl'] ?? '').toString();
+                    }
+
+                    final existingBannerUrl = (game?['bannerUrl'] ?? '').toString();
+
+                    return SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Banner picker
+                          GestureDetector(
+                            onTap: _showImagePickerSheet,
+                            child: Container(
+                              height: 160,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: kSteamDark,
+                                border: Border.all(color: _selectedImage != null ? kSteamAccent : kSteamMed, width: 1.5),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              clipBehavior: Clip.antiAlias,
+                              child: _buildBannerPreview(existingBannerUrl),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          _fieldLabel('GAME NAME'),
+                          _darkField(_nameController, 'Enter game name'),
+                          const SizedBox(height: 14),
+                          _fieldLabel('DESCRIPTION'),
+                          _darkField(_descriptionController, 'Enter description', maxLines: 3),
+                          const SizedBox(height: 14),
+                          _fieldLabel('SYSTEM REQUIREMENTS'),
+                          _darkField(_systemRequirementsController, 'e.g. OS: Windows 10, RAM: 8GB, GPU: GTX 1060', maxLines: 4),
+                          const SizedBox(height: 14),
+                          _fieldLabel('PUBLISHED DATE'),
+                          _darkField(_publishedDateController, '12 May 2025', suffix: const Icon(Icons.calendar_today, color: kSteamSubtext, size: 18)),
+                          const SizedBox(height: 14),
+                          _fieldLabel('DEVELOPER'),
+                          _darkField(_developerController, 'Studio name'),
+                          const SizedBox(height: 14),
+                          _fieldLabel('PRICE'),
+                          _darkField(_priceController, '\$0.00'),
+                          const SizedBox(height: 14),
+                          _fieldLabel('CATEGORY'),
+                          _darkField(_categoryController, 'ACTION'),
+                          const SizedBox(height: 14),
+                          _fieldLabel('BANNER URL (optional if image selected)'),
+                          _darkField(_bannerUrlController, 'https://...'),
+                          const SizedBox(height: 28),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 50,
+                            child: _isUploading
+                                ? const Center(child: CircularProgressIndicator(color: kSteamAccent))
+                                : GamingButton(
+                                    label: 'Save Changes',
+                                    onPressed: () async {
+                                      setState(() => _isUploading = true);
+                                      try {
+                                        String bannerUrl = _bannerUrlController.text.trim();
+                                        if (_selectedImage != null) {
+                                          final storageService = ref.read(storageServiceProvider);
+                                          bannerUrl = await storageService.uploadGameBanner(File(_selectedImage!.path), widget.gameId);
+                                        }
+                                        await ref.read(gameServiceProvider).updateGame(widget.gameId, {
+                                          'name': _nameController.text.trim(),
+                                          'description': _descriptionController.text.trim(),
+                                          'systemRequirements': _systemRequirementsController.text.trim(),
+                                          'publishedDate': _publishedDateController.text.trim(),
+                                          'developer': _developerController.text.trim(),
+                                          'price': _priceController.text.trim(),
+                                          'category': _categoryController.text.trim(),
+                                          'bannerUrl': bannerUrl,
+                                          'status': 'active',
+                                        });
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Game updated successfully')));
+                                          context.pop();
+                                        }
+                                      } catch (e) {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to update game: $e')));
+                                        }
+                                      } finally {
+                                        if (mounted) setState(() => _isUploading = false);
+                                      }
+                                    },
+                                  ),
+                          ),
+                          const SizedBox(height: 20),
+                        ],
+                      ),
+                    );
+                  },
+                  loading: () => const Center(child: CircularProgressIndicator(color: kSteamAccent)),
+                  error: (e, s) => Center(child: Text('Error: $e', style: GoogleFonts.rajdhani(color: kSteamRed, fontSize: 13))),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+      loading: () => const Scaffold(backgroundColor: kSteamBg, body: Center(child: CircularProgressIndicator(color: kSteamAccent))),
+      error: (e, s) => Scaffold(backgroundColor: kSteamBg, body: Center(child: Text('Error: $e', style: const TextStyle(color: Colors.red)))),
+    );
+  }
+}
