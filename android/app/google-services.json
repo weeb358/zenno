@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "330591683599",
+    "project_id": "zenno-aa3d5",
+    "storage_bucket": "zenno-aa3d5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:330591683599:android:9cc750b60d5dd20d05cf7a",
+        "android_client_info": {
+          "package_name": "com.example.zenno"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB6tN9wyzILwbvb41yLOhfJr4mWOGDS-WE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
