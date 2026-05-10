@@ -144,6 +144,33 @@ class AdminDashboardScreen extends ConsumerWidget {
                       color: kSteamGreen,
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: GamingButton(
+                      label: 'Manage Upcoming Games',
+                      onPressed: () => context.push('/admin-upcoming-games'),
+                      color: Colors.purpleAccent,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: GamingButton(
+                      label: 'Manage Notifications',
+                      onPressed: () => context.push('/admin-notifications'),
+                      color: Colors.orangeAccent,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: GamingButton(
+                      label: 'Settings',
+                      onPressed: () => context.push('/admin-settings'),
+                      color: Colors.blueGrey,
+                    ),
+                  ),
                 ],
               ),
             ),

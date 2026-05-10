@@ -8,7 +8,8 @@
       "Bash(flutter devices *)",
       "Bash(flutter analyze *)",
       "Bash(flutter run *)",
-      "PowerShell(Get-ChildItem \"C:\\\\\", \"$env:USERPROFILE\", \"$env:LOCALAPPDATA\" -Filter \"flutter.bat\" -Recurse -Depth 5 -ErrorAction SilentlyContinue | Select-Object -First 5 -ExpandProperty FullName)"
+      "PowerShell(Get-ChildItem \"C:\\\\\", \"$env:USERPROFILE\", \"$env:LOCALAPPDATA\" -Filter \"flutter.bat\" -Recurse -Depth 5 -ErrorAction SilentlyContinue | Select-Object -First 5 -ExpandProperty FullName)",
+      "Bash(git add *)"
     ]
   }
 }

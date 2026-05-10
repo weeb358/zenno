@@ -33,6 +33,26 @@ class _SignupPageState extends ConsumerState<SignupPage> {
     'What is your favorite color?',
   ];
 
+  static const List<String> _countryList = [
+    'Afghanistan', 'Albania', 'Algeria', 'Argentina', 'Armenia', 'Australia',
+    'Austria', 'Azerbaijan', 'Bahrain', 'Bangladesh', 'Belarus', 'Belgium',
+    'Bolivia', 'Bosnia and Herzegovina', 'Brazil', 'Bulgaria', 'Cambodia',
+    'Canada', 'Chile', 'China', 'Colombia', 'Croatia', 'Cuba',
+    'Czech Republic', 'Denmark', 'Ecuador', 'Egypt', 'Estonia', 'Ethiopia',
+    'Finland', 'France', 'Georgia', 'Germany', 'Ghana', 'Greece', 'Guatemala',
+    'Hungary', 'India', 'Indonesia', 'Iran', 'Iraq', 'Ireland', 'Israel',
+    'Italy', 'Japan', 'Jordan', 'Kazakhstan', 'Kenya', 'Kuwait', 'Latvia',
+    'Lebanon', 'Libya', 'Lithuania', 'Malaysia', 'Mexico', 'Morocco',
+    'Myanmar', 'Netherlands', 'New Zealand', 'Nigeria', 'North Korea',
+    'Norway', 'Oman', 'Pakistan', 'Palestine', 'Peru', 'Philippines',
+    'Poland', 'Portugal', 'Qatar', 'Romania', 'Russia', 'Saudi Arabia',
+    'Serbia', 'Singapore', 'Slovakia', 'South Africa', 'South Korea',
+    'Spain', 'Sri Lanka', 'Sudan', 'Sweden', 'Switzerland', 'Syria',
+    'Taiwan', 'Tanzania', 'Thailand', 'Tunisia', 'Turkey', 'UAE', 'Ukraine',
+    'United Kingdom', 'United States', 'Uruguay', 'Venezuela', 'Vietnam',
+    'Yemen', 'Zimbabwe',
+  ];
+
   @override
   void dispose() {
     _usernameController.dispose();
@@ -42,6 +62,85 @@ class _SignupPageState extends ConsumerState<SignupPage> {
     _confirmPasswordController.dispose();
     _answerController.dispose();
     super.dispose();
+  }
+
+  void _showCountryPicker() {
+    String search = '';
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: kSteamDark,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) {
+          final filtered = _countryList
+              .where((c) => c.toLowerCase().contains(search.toLowerCase()))
+              .toList();
+          return Padding(
+            padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+            child: SizedBox(
+              height: MediaQuery.of(ctx).size.height * 0.75,
+              child: Column(
+                children: [
+                  const SizedBox(height: 8),
+                  Container(
+                    width: 40, height: 4,
+                    decoration: BoxDecoration(color: kSteamMed, borderRadius: BorderRadius.circular(2)),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'SELECT COUNTRY',
+                    style: GoogleFonts.rajdhani(color: kSteamAccent, fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: 2),
+                  ),
+                  const SizedBox(height: 12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: TextField(
+                      autofocus: true,
+                      style: GoogleFonts.rajdhani(color: kSteamText, fontSize: 14),
+                      decoration: InputDecoration(
+                        hintText: 'Search country...',
+                        hintStyle: GoogleFonts.rajdhani(color: kSteamSubtext, fontSize: 13),
+                        prefixIcon: const Icon(Icons.search, color: kSteamAccent, size: 20),
+                        filled: true,
+                        fillColor: kSteamBg,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(6),
+                          borderSide: const BorderSide(color: kSteamMed),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(6),
+                          borderSide: const BorderSide(color: kSteamAccent),
+                        ),
+                      ),
+                      onChanged: (v) => setSheet(() => search = v),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: filtered.length,
+                      itemBuilder: (_, i) => ListTile(
+                        dense: true,
+                        leading: const Icon(Icons.flag_outlined, color: kSteamAccent, size: 18),
+                        title: Text(filtered[i], style: GoogleFonts.rajdhani(color: kSteamText, fontSize: 14)),
+                        onTap: () {
+                          setState(() => _countryController.text = filtered[i]);
+                          Navigator.pop(ctx);
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _handleSignup() async {
@@ -89,6 +188,9 @@ class _SignupPageState extends ConsumerState<SignupPage> {
     required String hint,
     required IconData icon,
     bool isPassword = false,
+    bool readOnly = false,
+    VoidCallback? onTap,
+    Widget? suffixIcon,
     bool? passwordVisible,
     VoidCallback? onToggleVisibility,
     String? Function(String?)? validator,
@@ -98,6 +200,8 @@ class _SignupPageState extends ConsumerState<SignupPage> {
       controller: controller,
       obscureText: isPassword && !(passwordVisible ?? false),
       keyboardType: keyboardType,
+      readOnly: readOnly,
+      onTap: onTap,
       style: GoogleFonts.rajdhani(color: kSteamText, fontSize: 14),
       validator: validator,
       decoration: InputDecoration(
@@ -113,7 +217,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                 ),
                 onPressed: onToggleVisibility,
               )
-            : null,
+            : suffixIcon,
         filled: true,
         fillColor: kSteamDark,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -220,11 +324,14 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                     ),
                     const SizedBox(height: 14),
 
-                    // Country
+                    // Country — tappable picker
                     _buildField(
                       controller: _countryController,
-                      hint: 'COUNTRY',
+                      hint: 'SELECT COUNTRY',
                       icon: Icons.public,
+                      readOnly: true,
+                      onTap: _showCountryPicker,
+                      suffixIcon: const Icon(Icons.arrow_drop_down, color: kSteamAccent),
                       validator: (v) => (v == null || v.trim().isEmpty) ? 'Country is required' : null,
                     ),
                     const SizedBox(height: 14),

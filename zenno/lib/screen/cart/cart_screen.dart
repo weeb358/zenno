@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../widgets/gaming_widgets.dart';
 import '../../src/providers.dart';
+import '../../src/translations.dart';
 
 class CartScreen extends ConsumerWidget {
   const CartScreen({super.key});
@@ -11,6 +12,7 @@ class CartScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cartAsync = ref.watch(cartStreamProvider);
+    final allGames = ref.watch(gamesStreamProvider).valueOrNull ?? [];
 
     return Scaffold(
       backgroundColor: kSteamBg,
@@ -22,7 +24,7 @@ class CartScreen extends ConsumerWidget {
           onPressed: () => context.pop(),
         ),
         title: Text(
-          'CART',
+          tr('cart_title'),
           style: GoogleFonts.rajdhani(
             color: kSteamAccent,
             fontWeight: FontWeight.w800,
@@ -50,7 +52,7 @@ class CartScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SteamSectionHeader('Your Cart'),
+                  SteamSectionHeader(tr('your_cart')),
                   const SizedBox(height: 14),
                   cartAsync.when(
                     data: (items) => items.isEmpty
@@ -62,12 +64,12 @@ class CartScreen extends ConsumerWidget {
                                   Icon(Icons.shopping_cart_outlined, color: kSteamSubtext, size: 56),
                                   const SizedBox(height: 16),
                                   Text(
-                                    'Your cart is empty',
+                                    tr('empty_cart'),
                                     style: GoogleFonts.rajdhani(color: kSteamText, fontSize: 16, fontWeight: FontWeight.w700),
                                   ),
                                   const SizedBox(height: 6),
                                   Text(
-                                    'Add games to get started!',
+                                    tr('add_games'),
                                     style: GoogleFonts.rajdhani(color: kSteamSubtext, fontSize: 13),
                                   ),
                                 ],
@@ -90,18 +92,37 @@ class CartScreen extends ConsumerWidget {
                                 final name = (item['name'] ?? 'Unknown').toString();
                                 final price = (item['price'] ?? '').toString();
                                 final gameId = (item['id'] ?? name).toString();
+                                String bannerUrl = (item['bannerUrl'] ?? '').toString();
+                                if (bannerUrl.isEmpty) {
+                                  final match = allGames.firstWhere(
+                                    (g) => (g['name'] ?? '').toString().toLowerCase() == name.toLowerCase(),
+                                    orElse: () => <String, dynamic>{},
+                                  );
+                                  bannerUrl = (match['bannerUrl'] ?? '').toString();
+                                }
                                 return Padding(
                                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                                   child: Row(
                                     children: [
-                                      Container(
-                                        width: 56,
-                                        height: 48,
-                                        decoration: BoxDecoration(
-                                          color: kSteamMed,
-                                          borderRadius: BorderRadius.circular(4),
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(4),
+                                        child: SizedBox(
+                                          width: 56,
+                                          height: 48,
+                                          child: bannerUrl.isNotEmpty
+                                              ? Image.network(
+                                                  bannerUrl,
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder: (ctx, err, st) => Container(
+                                                    color: kSteamMed,
+                                                    child: Icon(Icons.sports_esports, color: kSteamAccent.withValues(alpha: 0.4), size: 22),
+                                                  ),
+                                                )
+                                              : Container(
+                                                  color: kSteamMed,
+                                                  child: Icon(Icons.sports_esports, color: kSteamAccent.withValues(alpha: 0.4), size: 22),
+                                                ),
                                         ),
-                                        child: Icon(Icons.sports_esports, color: kSteamAccent.withValues(alpha: 0.4), size: 22),
                                       ),
                                       const SizedBox(width: 14),
                                       Expanded(
@@ -161,49 +182,22 @@ class CartScreen extends ConsumerWidget {
                   const SizedBox(height: 24),
                   SizedBox(
                     width: double.infinity,
-                    child: GamingButton(label: 'Browse More Games', onPressed: () => context.go('/home')),
+                    child: GamingButton(label: tr('browse_games'), onPressed: () => context.go('/home')),
                   ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: GamingButton(
-                      label: 'Proceed to Checkout',
-                      onPressed: () => context.push('/checkout'),
-                      color: kSteamGreen,
+                  if (cartAsync.valueOrNull?.isNotEmpty == true) ...[
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: GamingButton(
+                        label: tr('checkout'),
+                        onPressed: () => context.push('/checkout'),
+                        color: kSteamGreen,
+                      ),
                     ),
-                  ),
+                  ],
                   const SizedBox(height: 20),
                 ],
               ),
-            ),
-          ),
-        ),
-      ),
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: kSteamDark,
-          border: Border(top: BorderSide(color: kSteamMed, width: 1)),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                GestureDetector(
-                  onTap: () => context.push('/profile'),
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: kSteamMed,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: kSteamAccent.withValues(alpha: 0.5)),
-                    ),
-                    child: const Icon(Icons.person, color: kSteamAccent, size: 20),
-                  ),
-                ),
-              ],
             ),
           ),
         ),

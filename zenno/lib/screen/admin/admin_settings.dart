@@ -1,20 +1,19 @@
 // ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:zenno/widgets/gaming_widgets.dart';
-import 'package:zenno/src/providers.dart';
-import 'package:zenno/src/translations.dart';
+import '../../widgets/gaming_widgets.dart';
+import '../../src/providers.dart';
+import '../../src/translations.dart';
 
-class SettingsScreen extends ConsumerStatefulWidget {
-  const SettingsScreen({super.key});
+class AdminSettingsScreen extends ConsumerStatefulWidget {
+  const AdminSettingsScreen({super.key});
 
   @override
-  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+  ConsumerState<AdminSettingsScreen> createState() => _AdminSettingsScreenState();
 }
 
-class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
   String _language = 'English';
   bool _notifications = true;
   bool _darkMode = true;
@@ -71,64 +70,76 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kSteamBg,
-      appBar: GamingAppBar(title: tr('settings')),
+      appBar: AppBar(
+        backgroundColor: kSteamDark,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: kSteamAccent),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text(
+          tr('settings'),
+          style: GoogleFonts.rajdhani(
+            color: kSteamAccent, fontWeight: FontWeight.w800, fontSize: 18, letterSpacing: 3,
+          ),
+        ),
+        centerTitle: true,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            height: 1,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.transparent, kSteamAccent, Colors.transparent],
+              ),
+            ),
+          ),
+        ),
+      ),
       body: GamingGradientBackground(
         child: ParticleWidget(
           particleCount: 8,
-          child: SafeArea(
-            child: !_loaded
-                ? const Center(child: CircularProgressIndicator(color: kSteamAccent))
-                : SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SteamSectionHeader(tr('preferences')),
-                        const SizedBox(height: 12),
-                        _settingRow(
-                          tr('language'),
-                          _dropdown(_language, ['English', 'Spanish', 'French', 'German'],
-                              (v) => setState(() => _language = v!)),
-                        ),
-                        _settingRow(
-                          tr('notifications'),
-                          _toggle(_notifications, (v) => setState(() => _notifications = v)),
-                        ),
-                        _settingRow(
-                          tr('dark_mode'),
-                          _toggle(_darkMode, (v) => setState(() => _darkMode = v)),
-                        ),
-                        _settingRow(
-                          tr('app_sound'),
-                          _toggle(_appSound, (v) => setState(() => _appSound = v)),
-                        ),
-                        _settingRow(
-                          tr('font_size'),
-                          _dropdown(_fontSize, ['Small', 'Medium', 'Large'],
-                              (v) => setState(() => _fontSize = v!)),
-                        ),
-                        const SizedBox(height: 4),
-                        SizedBox(
-                          width: double.infinity,
-                          child: _saving
-                              ? const Center(child: CircularProgressIndicator(color: kSteamAccent))
-                              : GamingButton(label: tr('save_changes'), onPressed: _saveSettings),
-                        ),
-                        const SizedBox(height: 24),
-                        SteamSectionHeader(tr('account')),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: GamingButton(
-                            label: tr('change_password'),
-                            onPressed: () => context.push('/change-password'),
-                            color: kSteamAccent,
-                          ),
-                        ),
-                      ],
-                    ),
+          child: !_loaded
+              ? const Center(child: CircularProgressIndicator(color: kSteamAccent))
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SteamSectionHeader(tr('preferences')),
+                      const SizedBox(height: 16),
+                      _settingRow(
+                        tr('language'),
+                        _dropdown(_language, ['English', 'Spanish', 'French', 'German'],
+                            (v) => setState(() => _language = v!)),
+                      ),
+                      _settingRow(
+                        tr('notifications'),
+                        _toggle(_notifications, (v) => setState(() => _notifications = v)),
+                      ),
+                      _settingRow(
+                        tr('dark_mode'),
+                        _toggle(_darkMode, (v) => setState(() => _darkMode = v)),
+                      ),
+                      _settingRow(
+                        tr('app_sound'),
+                        _toggle(_appSound, (v) => setState(() => _appSound = v)),
+                      ),
+                      _settingRow(
+                        tr('font_size'),
+                        _dropdown(_fontSize, ['Small', 'Medium', 'Large'],
+                            (v) => setState(() => _fontSize = v!)),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: _saving
+                            ? const Center(child: CircularProgressIndicator(color: kSteamAccent))
+                            : GamingButton(label: tr('save_changes'), onPressed: _saveSettings),
+                      ),
+                    ],
                   ),
-          ),
+                ),
         ),
       ),
     );
@@ -136,9 +147,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _settingRow(String label, Widget control) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 16),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           color: kSteamDark,
           border: Border.all(color: kSteamMed, width: 1),
@@ -150,7 +161,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Text(
               label,
               style: GoogleFonts.rajdhani(
-                fontSize: 14, fontWeight: FontWeight.w600, color: kSteamText,
+                fontSize: 14, fontWeight: FontWeight.w600, color: kSteamText, letterSpacing: 0.3,
               ),
             ),
             control,
@@ -188,7 +199,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   value: v,
                   child: Text(
                     v,
-                    style: GoogleFonts.rajdhani(fontSize: 12, color: kSteamText, fontWeight: FontWeight.w600),
+                    style: GoogleFonts.rajdhani(
+                      fontSize: 12, color: kSteamText, fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ))
             .toList(),

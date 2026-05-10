@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../widgets/gaming_widgets.dart';
 import '../src/providers.dart';
+import '../src/translations.dart';
 import 'categories/action_games.dart';
 import 'categories/horror_games.dart';
 import 'categories/coops_games.dart';
@@ -13,9 +14,10 @@ import 'cart/cart_screen.dart';
 import 'notifications.dart';
 import 'menu.dart';
 import 'wallet.dart';
-import 'profile.dart';
 import 'game_description.dart';
+import 'profile.dart';
 import 'chat/chatbot.dart';
+import 'store/search_games.dart';
 
 class Homescreen extends ConsumerStatefulWidget {
   const Homescreen({super.key});
@@ -65,40 +67,23 @@ class _HomescreenState extends ConsumerState<Homescreen> {
           elevation: 0,
           automaticallyImplyLeading: false,
           flexibleSpace: Container(
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: kSteamMed, width: 1)),
-            ),
+            decoration: const BoxDecoration(),
             child: SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    // Logo
-                    Text(
-                      'ZENNO',
-                      style: GoogleFonts.rajdhani(
-                        color: kSteamAccent,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 4,
-                      ),
-                    ),
-                    // Nav icons
-                    Row(
-                      children: [
-                        _navIcon(Icons.home, true, null),
-                        _navIcon(Icons.notifications_outlined, false, () {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen()));
-                        }),
-                        _navIcon(Icons.view_agenda_outlined, false, () {
-                          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const UpcomingGamesScreen()));
-                        }),
-                        _navIcon(Icons.menu, false, () {
-                          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MenuScreen()));
-                        }),
-                      ],
-                    ),
+                    _navIcon(Icons.home_rounded, true, null),
+                    _navIcon(Icons.notifications_outlined, false, () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen()));
+                    }),
+                    _navIcon(Icons.grid_view_rounded, false, () {
+                      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const UpcomingGamesScreen()));
+                    }),
+                    _navIcon(Icons.menu_rounded, false, () {
+                      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MenuScreen()));
+                    }),
                   ],
                 ),
               ),
@@ -117,7 +102,6 @@ class _HomescreenState extends ConsumerState<Homescreen> {
                 // Action row: categories + wishlist + wallet
                 Row(
                   children: [
-                    // Category dropdown
                     _CategoryDropdown(
                       value: _selectedCategory,
                       items: _categories,
@@ -129,19 +113,19 @@ class _HomescreenState extends ConsumerState<Homescreen> {
                     ),
                     const Spacer(),
                     _ActionChip(
-                      label: 'WISHLIST',
+                      label: tr('wishlist'),
                       icon: Icons.favorite_border,
                       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WishlistGamesScreen())),
                     ),
                     const SizedBox(width: 8),
                     _ActionChip(
-                      label: 'WALLET',
+                      label: tr('wallet_title'),
                       icon: Icons.account_balance_wallet_outlined,
                       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WalletScreen())),
                     ),
                     const SizedBox(width: 8),
                     _ActionChip(
-                      label: 'CART',
+                      label: tr('cart'),
                       icon: Icons.shopping_cart_outlined,
                       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CartScreen())),
                     ),
@@ -154,7 +138,7 @@ class _HomescreenState extends ConsumerState<Homescreen> {
                 const SizedBox(height: 20),
 
                 // Games list
-                const SteamSectionHeader('Featured Games'),
+                SteamSectionHeader(tr('featured_games')),
                 const SizedBox(height: 12),
                 gamesAsync.when(
                   data: (games) {
@@ -167,7 +151,7 @@ class _HomescreenState extends ConsumerState<Homescreen> {
                               const Icon(Icons.gamepad_outlined, color: kSteamSubtext, size: 48),
                               const SizedBox(height: 12),
                               Text(
-                                'No games available.\nAdd games via the admin panel.',
+                                tr('no_games'),
                                 textAlign: TextAlign.center,
                                 style: GoogleFonts.rajdhani(color: kSteamSubtext, fontSize: 14, height: 1.5),
                               ),
@@ -186,10 +170,14 @@ class _HomescreenState extends ConsumerState<Homescreen> {
                         final price = (game['price'] ?? '').toString();
                         final gameId = (game['id'] ?? name).toString();
                         final bannerUrl = (game['bannerUrl'] ?? '').toString();
+                        final discount = ((game['discount'] as num?) ?? 0).toInt();
+                        final currency = (game['currency'] ?? 'USD').toString();
                         return _GameListTile(
                           name: name,
                           price: price,
                           bannerUrl: bannerUrl,
+                          discount: discount,
+                          currency: currency,
                           onTap: () => Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -234,13 +222,15 @@ class _HomescreenState extends ConsumerState<Homescreen> {
   Widget _navIcon(IconData icon, bool active, VoidCallback? onTap) {
     return GestureDetector(
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        child: Icon(
-          icon,
-          color: active ? kSteamAccent : kSteamSubtext,
-          size: 24,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: active ? kSteamMed : Colors.transparent,
+          border: active ? Border.all(color: kSteamAccent.withValues(alpha: 0.4), width: 1) : null,
+          borderRadius: BorderRadius.circular(8),
         ),
+        child: Icon(icon, color: active ? kSteamAccent : kSteamSubtext, size: 22),
       ),
     );
   }
@@ -320,7 +310,6 @@ class _HomescreenState extends ConsumerState<Homescreen> {
               )
             else
               _slidePlaceholderContent(name),
-            // Dark gradient overlay for readability
             ClipRRect(
               borderRadius: BorderRadius.circular(7),
               child: Container(
@@ -334,7 +323,6 @@ class _HomescreenState extends ConsumerState<Homescreen> {
                 ),
               ),
             ),
-            // Game name
             Positioned(
               bottom: 36,
               left: 12,
@@ -352,7 +340,6 @@ class _HomescreenState extends ConsumerState<Homescreen> {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            // Price + Details
             Positioned(
               bottom: 10,
               left: 12,
@@ -377,7 +364,7 @@ class _HomescreenState extends ConsumerState<Homescreen> {
                       borderRadius: BorderRadius.circular(4),
                       boxShadow: [BoxShadow(color: kSteamAccent.withValues(alpha: 0.3), blurRadius: 8)],
                     ),
-                    child: Text('DETAILS', style: GoogleFonts.rajdhani(color: kSteamAccent, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.5)),
+                    child: Text(tr('details'), style: GoogleFonts.rajdhani(color: kSteamAccent, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.5)),
                   ),
                 ],
               ),
@@ -445,7 +432,7 @@ class _HomescreenState extends ConsumerState<Homescreen> {
                   borderRadius: BorderRadius.circular(4),
                   boxShadow: [BoxShadow(color: kSteamAccent.withValues(alpha: 0.3), blurRadius: 8)],
                 ),
-                child: Text('EXPLORE', style: GoogleFonts.rajdhani(color: kSteamAccent, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1.5)),
+                child: Text(tr('explore'), style: GoogleFonts.rajdhani(color: kSteamAccent, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1.5)),
               ),
             ),
           ],
@@ -466,30 +453,23 @@ class _HomescreenState extends ConsumerState<Homescreen> {
           child: Row(
             children: [
               Expanded(
-                child: Container(
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: kSteamBg,
-                    border: Border.all(color: kSteamMed),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Row(
-                    children: [
-                      const SizedBox(width: 10),
-                      const Icon(Icons.search, color: kSteamSubtext, size: 18),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextField(
-                          decoration: InputDecoration(
-                            hintText: 'Search games...',
-                            hintStyle: GoogleFonts.rajdhani(color: kSteamSubtext, fontSize: 13),
-                            border: InputBorder.none,
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                          style: GoogleFonts.rajdhani(color: kSteamText, fontSize: 13),
-                        ),
-                      ),
-                    ],
+                child: GestureDetector(
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SearchGamesScreen())),
+                  child: Container(
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: kSteamBg,
+                      border: Border.all(color: kSteamMed),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      children: [
+                        const SizedBox(width: 10),
+                        const Icon(Icons.search, color: kSteamSubtext, size: 18),
+                        const SizedBox(width: 8),
+                        Text(tr('search_games'), style: GoogleFonts.rajdhani(color: kSteamSubtext, fontSize: 13)),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -552,7 +532,7 @@ class _CategoryDropdown extends StatelessWidget {
           child: Text(v, style: GoogleFonts.rajdhani(color: kSteamText, fontSize: 13, fontWeight: FontWeight.w600)),
         )).toList(),
         selectedItemBuilder: (_) => items.map((_) => Text(
-          'CATEGORIES',
+          tr('categories'),
           style: GoogleFonts.rajdhani(color: kSteamAccent, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1),
         )).toList(),
         onChanged: onChanged,
@@ -595,12 +575,42 @@ class _GameListTile extends StatelessWidget {
   final String name;
   final String price;
   final String bannerUrl;
+  final int discount;
+  final String currency;
   final VoidCallback onTap;
 
-  const _GameListTile({required this.name, required this.price, required this.onTap, this.bannerUrl = ''});
+  const _GameListTile({
+    required this.name,
+    required this.price,
+    required this.onTap,
+    this.bannerUrl = '',
+    this.discount = 0,
+    this.currency = 'USD',
+  });
+
+  static String _discountedPrice(String price, int discount, {String currency = 'USD'}) {
+    final raw = double.tryParse(price.replaceAll(RegExp(r'[^\d.]'), '')) ?? 0;
+    final discounted = raw * (1 - discount / 100);
+    if (currency == 'PKR') return 'Rs. ${discounted.toInt()}';
+    return '\$${discounted.toStringAsFixed(2)}';
+  }
+
+  static String _formatPrice(String price, String currency) {
+    if (price.isEmpty) return '';
+    if (price.startsWith('\$') || price.toLowerCase().startsWith('rs')) return price;
+    final num = double.tryParse(price.replaceAll(RegExp(r'[^\d.]'), ''));
+    if (num == null) return price;
+    if (currency == 'PKR') return 'Rs. ${num.toInt()}';
+    return '\$${num.toStringAsFixed(2)}';
+  }
 
   @override
   Widget build(BuildContext context) {
+    final hasDiscount = discount > 0;
+    final finalPrice = hasDiscount
+        ? _discountedPrice(price, discount, currency: currency)
+        : _formatPrice(price, currency);
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: GestureDetector(
@@ -644,30 +654,46 @@ class _GameListTile extends StatelessWidget {
                   children: [
                     Text(
                       name.toUpperCase(),
-                      style: GoogleFonts.rajdhani(
-                        color: kSteamText,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.5,
-                      ),
+                      style: GoogleFonts.rajdhani(color: kSteamText, fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 0.5),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      price,
-                      style: GoogleFonts.rajdhani(
-                        color: kSteamGreen,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
+                    if (hasDiscount) ...[
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                            decoration: BoxDecoration(color: kSteamRed, borderRadius: BorderRadius.circular(3)),
+                            child: Text('-$discount%', style: GoogleFonts.rajdhani(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            _formatPrice(price, currency),
+                            style: GoogleFonts.rajdhani(color: kSteamSubtext, fontSize: 11, decoration: TextDecoration.lineThrough, decorationColor: kSteamSubtext),
+                          ),
+                        ],
                       ),
-                    ),
+                      const SizedBox(height: 2),
+                      Text(finalPrice, style: GoogleFonts.rajdhani(color: kSteamGreen, fontSize: 13, fontWeight: FontWeight.w800)),
+                    ] else
+                      Text(finalPrice, style: GoogleFonts.rajdhani(color: kSteamGreen, fontSize: 13, fontWeight: FontWeight.w700)),
                   ],
                 ),
               ),
-              const Padding(
-                padding: EdgeInsets.only(right: 12),
-                child: Icon(Icons.chevron_right, color: kSteamSubtext, size: 20),
+              Padding(
+                padding: const EdgeInsets.only(right: 10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: kSteamAccent, width: 1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    tr('details'),
+                    style: GoogleFonts.rajdhani(color: kSteamAccent, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1),
+                  ),
+                ),
               ),
             ],
           ),

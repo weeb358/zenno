@@ -27,6 +27,8 @@ class _AdminAddGameScreenState extends ConsumerState<AdminAddGameScreen> {
 
   XFile? _selectedImage;
   bool _isUploading = false;
+  int _discount = 0;
+  String _currency = 'USD';
 
   @override
   void dispose() {
@@ -39,6 +41,35 @@ class _AdminAddGameScreenState extends ConsumerState<AdminAddGameScreen> {
     _categoryController.dispose();
     _bannerUrlController.dispose();
     super.dispose();
+  }
+
+  static String _monthName(int m) {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return months[m - 1];
+  }
+
+  Future<void> _pickPublishedDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: now,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2035),
+      builder: (ctx, child) => Theme(
+        data: ThemeData.dark().copyWith(
+          colorScheme: ColorScheme.dark(
+            primary: kSteamAccent,
+            surface: kSteamDark,
+            onSurface: kSteamText,
+          ),
+          dialogTheme: const DialogThemeData(backgroundColor: kSteamDark),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null && mounted) {
+      _publishedDateController.text = '${picked.day} ${_monthName(picked.month)} ${picked.year}';
+    }
   }
 
   Future<void> _pickImage(ImageSource source) async {
@@ -248,19 +279,87 @@ class _AdminAddGameScreenState extends ConsumerState<AdminAddGameScreen> {
                       _darkField(_systemRequirementsController, 'e.g. OS: Windows 10, RAM: 8GB, GPU: GTX 1060', maxLines: 4),
                       const SizedBox(height: 14),
                       _fieldLabel('PUBLISHED DATE'),
-                      _darkField(_publishedDateController, '12 May 2025', suffix: const Icon(Icons.calendar_today, color: kSteamSubtext, size: 18)),
+                      GestureDetector(
+                        onTap: _pickPublishedDate,
+                        child: AbsorbPointer(
+                          child: _darkField(
+                            _publishedDateController,
+                            'Tap to select date',
+                            suffix: const Icon(Icons.calendar_today, color: kSteamAccent, size: 18),
+                          ),
+                        ),
+                      ),
                       const SizedBox(height: 14),
                       _fieldLabel('DEVELOPER'),
                       _darkField(_developerController, 'Studio name'),
                       const SizedBox(height: 14),
-                      _fieldLabel('PRICE'),
-                      _darkField(_priceController, '\$0.00'),
+                      _fieldLabel('PRICE & CURRENCY'),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _darkField(
+                              _priceController,
+                              _currency == 'USD' ? '29.99' : '4999',
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: kSteamDark,
+                              border: Border.all(color: kSteamMed, width: 1.5),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: DropdownButton<String>(
+                              value: _currency,
+                              dropdownColor: kSteamDark,
+                              underline: const SizedBox(),
+                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                              items: [
+                                DropdownMenuItem(
+                                  value: 'USD',
+                                  child: Text('USD \$', style: GoogleFonts.rajdhani(color: kSteamText, fontSize: 13, fontWeight: FontWeight.w600)),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'PKR',
+                                  child: Text('PKR Rs.', style: GoogleFonts.rajdhani(color: kSteamText, fontSize: 13, fontWeight: FontWeight.w600)),
+                                ),
+                              ],
+                              onChanged: (v) => setState(() => _currency = v ?? 'USD'),
+                            ),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 14),
                       _fieldLabel('CATEGORY'),
                       _darkField(_categoryController, 'ACTION'),
                       const SizedBox(height: 14),
                       _fieldLabel('BANNER URL (optional if image selected)'),
                       _darkField(_bannerUrlController, 'https://...'),
+                      const SizedBox(height: 14),
+                      _fieldLabel('DISCOUNT — $_discount%'),
+                      Row(
+                        children: [
+                          Text('0%', style: GoogleFonts.rajdhani(color: kSteamSubtext, fontSize: 11)),
+                          Expanded(
+                            child: SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                activeTrackColor: kSteamAccent,
+                                inactiveTrackColor: kSteamMed,
+                                thumbColor: kSteamAccent,
+                                overlayColor: kSteamAccent.withValues(alpha: 0.2),
+                              ),
+                              child: Slider(
+                                value: _discount.toDouble(),
+                                min: 0,
+                                max: 80,
+                                divisions: 16,
+                                onChanged: (v) => setState(() => _discount = v.toInt()),
+                              ),
+                            ),
+                          ),
+                          Text('80%', style: GoogleFonts.rajdhani(color: kSteamSubtext, fontSize: 11)),
+                        ],
+                      ),
                       const SizedBox(height: 28),
                       SizedBox(
                         width: double.infinity,
@@ -291,9 +390,11 @@ class _AdminAddGameScreenState extends ConsumerState<AdminAddGameScreen> {
                                       'publishedDate': _publishedDateController.text.trim(),
                                       'developer': _developerController.text.trim(),
                                       'price': _priceController.text.trim(),
+                                      'currency': _currency,
                                       'category': _categoryController.text.trim(),
                                       'bannerUrl': bannerUrl,
                                       'status': 'active',
+                                      'discount': _discount,
                                     });
                                     if (context.mounted) {
                                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Game added successfully')));

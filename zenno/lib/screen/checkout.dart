@@ -4,17 +4,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../widgets/gaming_widgets.dart';
 import '../src/providers.dart';
-import '../src/services/encryption_service.dart';
+import '../src/translations.dart';
 import 'checkout_success.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
   final String gameName;
   final String gamePrice;
+  final String? gameId;
+  final String bannerUrl;
 
   const CheckoutScreen({
     super.key,
     required this.gameName,
     required this.gamePrice,
+    this.gameId,
+    this.bannerUrl = '',
   });
 
   @override
@@ -22,58 +26,15 @@ class CheckoutScreen extends ConsumerStatefulWidget {
 }
 
 class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
-  late TextEditingController _nameController;
-  late TextEditingController _cardNumberController;
-  late TextEditingController _expiryController;
-  late TextEditingController _secretCodeController;
+  bool _processing = false;
 
-  bool _isCardPayment = true;
-  String _encryptedCardPreview = '';
-
-  @override
-  void initState() {
-    super.initState();
-    _nameController = TextEditingController();
-    _cardNumberController = TextEditingController();
-    _expiryController = TextEditingController();
-    _secretCodeController = TextEditingController();
-
-    _cardNumberController.addListener(() {
-      final raw = _cardNumberController.text.trim();
-      setState(() {
-        _encryptedCardPreview = raw.isNotEmpty ? EncryptionService.encryptText(raw) : '';
-      });
-    });
+  double _parsePrice(String price) {
+    final cleaned = price.replaceAll(RegExp(r'[^\d.]'), '');
+    return double.tryParse(cleaned) ?? 0.0;
   }
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _cardNumberController.dispose();
-    _expiryController.dispose();
-    _secretCodeController.dispose();
-    super.dispose();
-  }
-
-  void _confirmPayment() {
-    if (_isCardPayment) {
-      if (_nameController.text.isEmpty ||
-          _cardNumberController.text.isEmpty ||
-          _expiryController.text.isEmpty ||
-          _secretCodeController.text.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please fill in all card details!')),
-        );
-        return;
-      }
-    }
-
-    final encrypted = _isCardPayment
-        ? EncryptionService.encryptText(_cardNumberController.text.trim())
-        : '';
-    final masked = _isCardPayment
-        ? EncryptionService.maskCardNumber(_cardNumberController.text.trim())
-        : '';
+  void _showConfirmDialog(double walletBalance, double gamePrice) {
+    final remaining = walletBalance - gamePrice;
 
     showDialog(
       context: context,
@@ -93,49 +54,39 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 height: 52,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: kSteamRed.withValues(alpha: 0.15),
-                  border: Border.all(color: kSteamRed, width: 1.5),
+                  color: kSteamAccent.withValues(alpha: 0.15),
+                  border: Border.all(color: kSteamAccent, width: 1.5),
                 ),
-                child: const Center(child: Icon(Icons.warning_amber_rounded, color: kSteamRed, size: 28)),
+                child: const Center(
+                  child: Icon(Icons.account_balance_wallet, color: kSteamAccent, size: 26),
+                ),
               ),
               const SizedBox(height: 14),
-              Text('CONFIRM PURCHASE', style: GoogleFonts.rajdhani(fontSize: 16, fontWeight: FontWeight.w800, color: kSteamText, letterSpacing: 1)),
-              const SizedBox(height: 8),
               Text(
-                'Buy "${widget.gameName}" for ${widget.gamePrice}?',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.rajdhani(fontSize: 13, color: kSteamSubtext),
-              ),
-              if (_isCardPayment && encrypted.isNotEmpty) ...[
-                const SizedBox(height: 14),
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: kSteamBg,
-                    border: Border.all(color: kSteamAccent.withValues(alpha: 0.4)),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.lock, color: kSteamAccent, size: 12),
-                          const SizedBox(width: 4),
-                          Text('AES-256 ENCRYPTED', style: GoogleFonts.rajdhani(fontSize: 10, fontWeight: FontWeight.w800, color: kSteamAccent, letterSpacing: 1)),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text('Card: $masked', style: GoogleFonts.rajdhani(fontSize: 11, color: kSteamText)),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Hash: ${encrypted.length > 28 ? '${encrypted.substring(0, 28)}…' : encrypted}',
-                        style: GoogleFonts.rajdhani(fontSize: 10, color: kSteamSubtext),
-                      ),
-                    ],
-                  ),
+                tr('confirm_purchase'),
+                style: GoogleFonts.rajdhani(
+                  fontSize: 16, fontWeight: FontWeight.w800, color: kSteamText, letterSpacing: 1,
                 ),
-              ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '"${widget.gameName}"',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.rajdhani(fontSize: 14, color: kSteamText, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 14),
+              _summaryRow(tr('game_price'), widget.gamePrice, kSteamGreen),
+              const SizedBox(height: 6),
+              _summaryRow(tr('wallet_balance_label'), '\$${walletBalance.toStringAsFixed(2)}', kSteamSubtext),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Divider(color: kSteamMed),
+              ),
+              _summaryRow(
+                tr('after_purchase'),
+                '\$${remaining.toStringAsFixed(2)}',
+                remaining >= 0 ? kSteamText : kSteamRed,
+              ),
               const SizedBox(height: 18),
               Row(
                 children: [
@@ -146,7 +97,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                         side: const BorderSide(color: kSteamMed),
                         padding: const EdgeInsets.symmetric(vertical: 10),
                       ),
-                      child: Text('CANCEL', style: GoogleFonts.rajdhani(color: kSteamSubtext, fontWeight: FontWeight.w700)),
+                      child: Text(
+                        tr('cancel'),
+                        style: GoogleFonts.rajdhani(color: kSteamSubtext, fontWeight: FontWeight.w700),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -154,14 +108,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     child: ElevatedButton(
                       onPressed: () {
                         Navigator.of(ctx).pop();
-                        _processPayment();
+                        _processPayment(gamePrice);
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: kSteamAccent,
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                       ),
-                      child: Text('CONFIRM', style: GoogleFonts.rajdhani(color: kSteamBg, fontWeight: FontWeight.w800)),
+                      child: Text(
+                        tr('confirm'),
+                        style: GoogleFonts.rajdhani(color: kSteamBg, fontWeight: FontWeight.w800),
+                      ),
                     ),
                   ),
                 ],
@@ -173,30 +130,53 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     );
   }
 
-  Future<void> _processPayment() async {
-    final userDataService = ref.read(userDataServiceProvider);
-    await userDataService.savePurchase(widget.gameName, widget.gamePrice);
+  Future<void> _processPayment(double gamePrice) async {
+    if (_processing) return;
+    setState(() => _processing = true);
 
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${widget.gameName} purchased!')),
+    final userDataService = ref.read(userDataServiceProvider);
+
+    final success = await userDataService.deductFromWallet(gamePrice);
+    if (!success) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Insufficient wallet balance!'),
+            backgroundColor: kSteamRed,
+          ),
+        );
+        setState(() => _processing = false);
+      }
+      return;
+    }
+
+    await userDataService.savePurchase(
+      widget.gameName,
+      widget.gamePrice,
+      bannerUrl: widget.bannerUrl,
     );
 
-    Future.delayed(const Duration(seconds: 1), () {
-      if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => CheckoutSuccessScreen(gameName: widget.gameName)),
-      );
-    });
+    final id = widget.gameId ?? widget.gameName;
+    await userDataService.removeFromWishlist(id);
+    await userDataService.removeFromCart(id);
+
+    if (!mounted) return;
+    setState(() => _processing = false);
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => CheckoutSuccessScreen(gameName: widget.gameName)),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final profileAsync = ref.watch(userProfileStreamProvider);
     final walletBalance = profileAsync.maybeWhen(
-      data: (p) => (p?['wallet'] ?? 0.0),
+      data: (p) => ((p?['wallet'] as num?) ?? 0.0).toDouble(),
       orElse: () => 0.0,
     );
+    final gamePrice = _parsePrice(widget.gamePrice);
+    final hasEnoughBalance = walletBalance >= gamePrice;
 
     return Scaffold(
       backgroundColor: kSteamBg,
@@ -208,8 +188,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          'CHECKOUT',
-          style: GoogleFonts.rajdhani(color: kSteamAccent, fontWeight: FontWeight.w800, fontSize: 18, letterSpacing: 3),
+          tr('checkout_title'),
+          style: GoogleFonts.rajdhani(
+            color: kSteamAccent, fontWeight: FontWeight.w800, fontSize: 18, letterSpacing: 3,
+          ),
         ),
         centerTitle: true,
         bottom: PreferredSize(
@@ -217,7 +199,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           child: Container(
             height: 1,
             decoration: const BoxDecoration(
-              gradient: LinearGradient(colors: [Colors.transparent, kSteamAccent, Colors.transparent]),
+              gradient: LinearGradient(
+                colors: [Colors.transparent, kSteamAccent, Colors.transparent],
+              ),
             ),
           ),
         ),
@@ -230,146 +214,152 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Order summary
+                // ── Order summary ──────────────────────────────────
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: [kSteamMed, kSteamDark], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                    gradient: const LinearGradient(
+                      colors: [kSteamMed, kSteamDark],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
                     border: Border.all(color: kSteamAccent.withValues(alpha: 0.3)),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     children: [
-                      Container(
-                        width: 52,
-                        height: 52,
-                        decoration: BoxDecoration(color: kSteamBg, borderRadius: BorderRadius.circular(6)),
-                        child: const Icon(Icons.sports_esports, color: kSteamAccent, size: 28),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: SizedBox(
+                          width: 70,
+                          height: 52,
+                          child: widget.bannerUrl.isNotEmpty
+                              ? Image.network(
+                                  widget.bannerUrl,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (ctx, e, _) => _gameIcon(),
+                                )
+                              : _gameIcon(),
+                        ),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(widget.gameName, style: GoogleFonts.rajdhani(color: kSteamText, fontWeight: FontWeight.w800, fontSize: 15)),
+                            Text(
+                              widget.gameName,
+                              style: GoogleFonts.rajdhani(
+                                color: kSteamText, fontWeight: FontWeight.w800, fontSize: 15,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                             const SizedBox(height: 4),
-                            Text(widget.gamePrice, style: GoogleFonts.rajdhani(color: kSteamGreen, fontWeight: FontWeight.w800, fontSize: 16)),
+                            Text(
+                              widget.gamePrice,
+                              style: GoogleFonts.rajdhani(
+                                color: kSteamGreen, fontWeight: FontWeight.w800, fontSize: 16,
+                              ),
+                            ),
                           ],
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
 
-                // Payment method
-                const SteamSectionHeader('Payment Method'),
+                // ── Wallet section ─────────────────────────────────
+                SteamSectionHeader(tr('payment_method')),
                 const SizedBox(height: 12),
                 Container(
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: kSteamDark,
-                    border: Border.all(color: kSteamMed),
+                    border: Border.all(
+                      color: hasEnoughBalance
+                          ? kSteamAccent.withValues(alpha: 0.5)
+                          : kSteamRed.withValues(alpha: 0.5),
+                      width: 1.5,
+                    ),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _radioOption(true, Icons.credit_card, 'Card Payment'),
-                      const SizedBox(height: 10),
-                      _radioOption(false, Icons.account_balance_wallet, 'Wallet Payment'),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                if (_isCardPayment) ...[
-                  const SteamSectionHeader('Card Details'),
-                  const SizedBox(height: 12),
-
-                  _fieldLabel('NAME ON CARD'),
-                  const SizedBox(height: 6),
-                  _buildField(_nameController, hint: 'John Doe'),
-                  const SizedBox(height: 14),
-
-                  _fieldLabel('CARD NUMBER'),
-                  const SizedBox(height: 6),
-                  _buildField(_cardNumberController, hint: '0000-0000-0000-0000'),
-                  if (_encryptedCardPreview.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: kSteamBg,
-                        border: Border.all(color: kSteamAccent.withValues(alpha: 0.4)),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Row(
+                      Row(
                         children: [
-                          const Icon(Icons.lock, color: kSteamAccent, size: 14),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              'Encrypted: ${_encryptedCardPreview.length > 30 ? '${_encryptedCardPreview.substring(0, 30)}…' : _encryptedCardPreview}',
-                              style: GoogleFonts.rajdhani(fontSize: 11, color: kSteamAccent),
+                          Icon(
+                            Icons.account_balance_wallet,
+                            color: hasEnoughBalance ? kSteamAccent : kSteamRed,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            tr('zenno_wallet'),
+                            style: GoogleFonts.rajdhani(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1,
+                              color: hasEnoughBalance ? kSteamAccent : kSteamRed,
                             ),
                           ),
                         ],
                       ),
-                    ),
-                  ],
-                  const SizedBox(height: 14),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _fieldLabel('EXPIRY DATE'),
-                            const SizedBox(height: 6),
-                            _buildField(_expiryController, hint: 'MM/YY'),
-                          ],
-                        ),
+                      const SizedBox(height: 14),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            tr('available_balance'),
+                            style: GoogleFonts.rajdhani(fontSize: 13, color: kSteamSubtext),
+                          ),
+                          profileAsync.isLoading
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: kSteamAccent),
+                                )
+                              : Text(
+                                  '\$${walletBalance.toStringAsFixed(2)}',
+                                  style: GoogleFonts.rajdhani(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w800,
+                                    color: hasEnoughBalance ? kSteamGreen : kSteamRed,
+                                  ),
+                                ),
+                        ],
                       ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _fieldLabel('CVV'),
-                            const SizedBox(height: 6),
-                            _buildField(_secretCodeController, obscure: true, hint: '•••'),
-                          ],
+                      if (!hasEnoughBalance && !profileAsync.isLoading) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: kSteamRed.withValues(alpha: 0.08),
+                            border: Border.all(color: kSteamRed.withValues(alpha: 0.4)),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.warning_amber_rounded, color: kSteamRed, size: 16),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  tr('insufficient_msg'),
+                                  style: GoogleFonts.rajdhani(fontSize: 12, color: kSteamRed),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
-                ] else ...[
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: kSteamDark,
-                      border: Border.all(color: kSteamMed),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('WALLET BALANCE', style: GoogleFonts.rajdhani(fontSize: 11, color: kSteamSubtext, letterSpacing: 1)),
-                        const SizedBox(height: 8),
-                        Text(
-                          '\$${walletBalance.toStringAsFixed(2)}',
-                          style: GoogleFonts.rajdhani(fontSize: 22, fontWeight: FontWeight.w800, color: kSteamGreen),
-                        ),
-                        const SizedBox(height: 6),
-                        Text('Your wallet will be charged for this transaction.', style: GoogleFonts.rajdhani(fontSize: 12, color: kSteamSubtext)),
-                      ],
-                    ),
-                  ),
-                ],
+                ),
                 const SizedBox(height: 20),
 
-                // Total
+                // ── Total ──────────────────────────────────────────
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
@@ -380,20 +370,35 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('TOTAL', style: GoogleFonts.rajdhani(fontSize: 14, fontWeight: FontWeight.w700, color: kSteamSubtext, letterSpacing: 1)),
-                      Text(widget.gamePrice, style: GoogleFonts.rajdhani(fontSize: 20, fontWeight: FontWeight.w800, color: kSteamGreen)),
+                      Text(
+                        tr('total'),
+                        style: GoogleFonts.rajdhani(
+                          fontSize: 14, fontWeight: FontWeight.w700, color: kSteamSubtext, letterSpacing: 1,
+                        ),
+                      ),
+                      Text(
+                        widget.gamePrice,
+                        style: GoogleFonts.rajdhani(
+                          fontSize: 20, fontWeight: FontWeight.w800, color: kSteamGreen,
+                        ),
+                      ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 24),
 
+                // ── Pay button ─────────────────────────────────────
                 SizedBox(
                   width: double.infinity,
-                  child: GamingButton(
-                    label: 'Confirm Payment',
-                    onPressed: _confirmPayment,
-                    color: kSteamGreen,
-                  ),
+                  child: _processing
+                      ? const Center(child: CircularProgressIndicator(color: kSteamAccent))
+                      : GamingButton(
+                          label: hasEnoughBalance ? tr('pay_wallet') : tr('insufficient'),
+                          onPressed: hasEnoughBalance && !profileAsync.isLoading
+                              ? () => _showConfirmDialog(walletBalance, gamePrice)
+                              : () {},
+                          color: hasEnoughBalance ? kSteamGreen : kSteamSubtext,
+                        ),
                 ),
                 const SizedBox(height: 60),
               ],
@@ -404,63 +409,20 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     );
   }
 
-  Widget _radioOption(bool value, IconData icon, String label) {
-    return GestureDetector(
-      onTap: () => setState(() => _isCardPayment = value),
-      child: Row(
-        children: [
-          Container(
-            width: 20,
-            height: 20,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: _isCardPayment == value ? kSteamAccent : kSteamMed, width: 2),
-            ),
-            child: _isCardPayment == value
-                ? Center(
-                    child: Container(
-                      width: 10,
-                      height: 10,
-                      decoration: const BoxDecoration(shape: BoxShape.circle, color: kSteamAccent),
-                    ),
-                  )
-                : null,
-          ),
-          const SizedBox(width: 10),
-          Icon(icon, color: _isCardPayment == value ? kSteamAccent : kSteamSubtext, size: 18),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: GoogleFonts.rajdhani(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: _isCardPayment == value ? kSteamText : kSteamSubtext,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _gameIcon() => Container(
+        color: kSteamBg,
+        child: const Center(
+          child: Icon(Icons.sports_esports, color: kSteamAccent, size: 28),
+        ),
+      );
 
-  Widget _fieldLabel(String text) {
-    return Text(text, style: GoogleFonts.rajdhani(fontSize: 11, fontWeight: FontWeight.w700, color: kSteamSubtext, letterSpacing: 1));
-  }
-
-  Widget _buildField(TextEditingController controller, {String? hint, bool obscure = false}) {
-    return TextField(
-      controller: controller,
-      obscureText: obscure,
-      style: GoogleFonts.rajdhani(color: kSteamText, fontSize: 14),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: GoogleFonts.rajdhani(color: kSteamSubtext, fontSize: 13),
-        filled: true,
-        fillColor: kSteamBg,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: kSteamMed)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: kSteamMed)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: kSteamAccent, width: 1.5)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      ),
+  Widget _summaryRow(String label, String value, Color valueColor) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: GoogleFonts.rajdhani(fontSize: 12, color: kSteamSubtext)),
+        Text(value, style: GoogleFonts.rajdhani(fontSize: 13, fontWeight: FontWeight.w700, color: valueColor)),
+      ],
     );
   }
 }
