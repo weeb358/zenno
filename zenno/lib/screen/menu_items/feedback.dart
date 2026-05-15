@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../widgets/gaming_widgets.dart';
 import '../menu.dart';
+import '../chat/chatbot.dart';
 
 class FeedbackScreen extends StatefulWidget {
   const FeedbackScreen({super.key});
@@ -130,6 +131,33 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ),
+      ),
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(color: kSteamDark, border: Border(top: BorderSide(color: kSteamMed, width: 1))),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                GestureDetector(
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatbotScreen())),
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: kSteamMed,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: kSteamAccent.withValues(alpha: 0.6)),
+                      boxShadow: [BoxShadow(color: kSteamAccent.withValues(alpha: 0.2), blurRadius: 8)],
+                    ),
+                    child: const Icon(Icons.smart_toy, color: kSteamAccent, size: 22),
+                  ),
+                ),
               ],
             ),
           ),

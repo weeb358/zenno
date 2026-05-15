@@ -8,77 +8,9 @@ import 'package:firebase_database/firebase_database.dart';
 import 'services/auth_service.dart';
 import 'services/admin_service.dart';
 import 'services/game_service.dart';
-import 'services/notification_service.dart';
 import 'services/storage_service.dart';
 import 'services/user_data_service.dart';
 import '../firebase_options.dart';
-
-/// ------------------------------
-/// ⚙️ APP SETTINGS (global, reactive)
-/// ------------------------------
-class AppSettings {
-  final String language;
-  final bool notifications;
-  final bool darkMode;
-  final bool appSound;
-  final String fontSize;
-
-  const AppSettings({
-    this.language = 'English',
-    this.notifications = true,
-    this.darkMode = true,
-    this.appSound = true,
-    this.fontSize = 'Small',
-  });
-
-  double get textScale => switch (fontSize) {
-    'Large' => 1.2,
-    'Medium' => 1.0,
-    _ => 0.85,
-  };
-
-  AppSettings copyWith({
-    String? language,
-    bool? notifications,
-    bool? darkMode,
-    bool? appSound,
-    String? fontSize,
-  }) =>
-      AppSettings(
-        language: language ?? this.language,
-        notifications: notifications ?? this.notifications,
-        darkMode: darkMode ?? this.darkMode,
-        appSound: appSound ?? this.appSound,
-        fontSize: fontSize ?? this.fontSize,
-      );
-
-  factory AppSettings.fromMap(Map<String, dynamic> map) => AppSettings(
-        language: (map['language'] ?? 'English').toString(),
-        notifications: map['notifications'] as bool? ?? true,
-        darkMode: map['darkMode'] as bool? ?? true,
-        appSound: map['appSound'] as bool? ?? true,
-        fontSize: (map['fontSize'] ?? 'Small').toString(),
-      );
-
-  Map<String, dynamic> toMap() => {
-        'language': language,
-        'notifications': notifications,
-        'darkMode': darkMode,
-        'appSound': appSound,
-        'fontSize': fontSize,
-      };
-}
-
-class AppSettingsNotifier extends StateNotifier<AppSettings> {
-  AppSettingsNotifier() : super(const AppSettings());
-  void update(AppSettings s) => state = s;
-  void reset() => state = const AppSettings();
-}
-
-final appSettingsProvider =
-    StateNotifierProvider<AppSettingsNotifier, AppSettings>(
-  (ref) => AppSettingsNotifier(),
-);
 
 /// ------------------------------
 /// 🔥 Firebase State
@@ -208,21 +140,8 @@ final storageServiceProvider = Provider<StorageService>((ref) {
   return StorageService();
 });
 
-final adminSettingsStreamProvider = StreamProvider<Map<String, dynamic>>((ref) {
-  final user = ref.watch(authStateChangesProvider).value;
-  if (user == null) return const Stream.empty();
-  try {
-    return ref.read(adminServiceProvider).getAdminSettingsStream();
-  } catch (_) {
-    return Stream.value({});
-  }
-});
-
 final allUsersStreamProvider =
     StreamProvider<List<Map<String, dynamic>>>((ref) {
-  // Must wait for authenticated session — same pattern as all other stream providers
-  final user = ref.watch(authStateChangesProvider).value;
-  if (user == null) return const Stream.empty();
   try {
     final adminService = ref.read(adminServiceProvider);
     return adminService.getUsersStream().transform(
@@ -292,13 +211,6 @@ final userDataServiceProvider = Provider<UserDataService>((ref) {
   return UserDataService(auth, db);
 });
 
-final userSettingsStreamProvider = StreamProvider<Map<String, dynamic>>((ref) {
-  final user = ref.watch(authStateChangesProvider).value;
-  if (user == null) return const Stream.empty();
-  final service = ref.read(userDataServiceProvider);
-  return service.getSettingsStream();
-});
-
 final wishlistStreamProvider =
     StreamProvider<List<Map<String, dynamic>>>((ref) {
   final user = ref.watch(authStateChangesProvider).value;
@@ -315,75 +227,10 @@ final cartStreamProvider =
   return service.getCartStream();
 });
 
-final cardsStreamProvider =
-    StreamProvider<List<Map<String, dynamic>>>((ref) {
-  final user = ref.watch(authStateChangesProvider).value;
-  if (user == null) return const Stream.empty();
-  final service = ref.read(userDataServiceProvider);
-  return service.getCardsStream();
-});
-
-final walletTransactionsStreamProvider =
-    StreamProvider<List<Map<String, dynamic>>>((ref) {
-  final user = ref.watch(authStateChangesProvider).value;
-  if (user == null) return const Stream.empty();
-  final service = ref.read(userDataServiceProvider);
-  return service.getWalletTransactionsStream();
-});
-
 final purchaseHistoryStreamProvider =
     StreamProvider<List<Map<String, dynamic>>>((ref) {
   final user = ref.watch(authStateChangesProvider).value;
   if (user == null) return const Stream.empty();
   final service = ref.read(userDataServiceProvider);
   return service.getPurchaseHistoryStream();
-});
-
-/// ------------------------------
-/// 📅 UPCOMING GAMES
-/// ------------------------------
-final upcomingGamesStreamProvider =
-    StreamProvider<List<Map<String, dynamic>>>((ref) {
-  try {
-    final user = ref.watch(authStateChangesProvider).value;
-    if (user == null) return const Stream.empty();
-    final gameService = ref.read(gameServiceProvider);
-    return gameService.getUpcomingGamesStream().transform(
-      StreamTransformer<List<Map<String, dynamic>>,
-          List<Map<String, dynamic>>>.fromHandlers(
-        handleData: (data, sink) => sink.add(data),
-        handleError: (error, stackTrace, sink) => sink.add([]),
-      ),
-    );
-  } catch (e) {
-    return Stream.value([]);
-  }
-});
-
-/// ------------------------------
-/// 🔔 NOTIFICATIONS
-/// ------------------------------
-final notificationServiceProvider = Provider<NotificationService>((ref) {
-  final db = ref.read(realtimeDatabaseProvider);
-  return NotificationService(db);
-});
-
-final notificationsStreamProvider =
-    StreamProvider<List<Map<String, dynamic>>>((ref) {
-  try {
-    final user = ref.watch(authStateChangesProvider).value;
-    if (user == null) return const Stream.empty();
-    final notificationsEnabled = ref.watch(appSettingsProvider).notifications;
-    if (!notificationsEnabled) return Stream.value([]);
-    final service = ref.read(notificationServiceProvider);
-    return service.getNotificationsStream().transform(
-      StreamTransformer<List<Map<String, dynamic>>,
-          List<Map<String, dynamic>>>.fromHandlers(
-        handleData: (data, sink) => sink.add(data),
-        handleError: (error, stackTrace, sink) => sink.add([]),
-      ),
-    );
-  } catch (e) {
-    return Stream.value([]);
-  }
 });

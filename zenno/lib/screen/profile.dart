@@ -4,8 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../widgets/gaming_widgets.dart';
 import '../src/providers.dart';
-import '../src/translations.dart';
 import 'auth/edit_profile.dart';
+import 'chat/chatbot.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -39,7 +39,7 @@ class ProfileScreen extends ConsumerWidget {
           borderRadius: BorderRadius.circular(8),
           side: const BorderSide(color: kSteamRed),
         ),
-        title: Text(tr('delete_account'), style: GoogleFonts.rajdhani(color: kSteamRed, fontWeight: FontWeight.w700, fontSize: 18)),
+        title: Text('Delete Account', style: GoogleFonts.rajdhani(color: kSteamRed, fontWeight: FontWeight.w700, fontSize: 18)),
         content: Text(
           'This will permanently delete your account and all data. This cannot be undone.',
           style: GoogleFonts.rajdhani(color: kSteamText, fontSize: 13),
@@ -75,7 +75,7 @@ class ProfileScreen extends ConsumerWidget {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          tr('profile'),
+          'PROFILE',
           style: GoogleFonts.rajdhani(color: kSteamAccent, fontWeight: FontWeight.w800, fontSize: 18, letterSpacing: 3),
         ),
         centerTitle: true,
@@ -187,15 +187,15 @@ class ProfileScreen extends ConsumerWidget {
                     // Stats
                     Row(
                       children: [
-                        Expanded(child: _StatBox(value: totalGames, label: tr('games_owned'), icon: Icons.sports_esports)),
+                        Expanded(child: _StatBox(value: totalGames, label: 'Games Owned', icon: Icons.sports_esports)),
                         const SizedBox(width: 12),
-                        Expanded(child: _StatBox(value: hoursPlayed, label: tr('hours_played'), icon: Icons.access_time)),
+                        Expanded(child: _StatBox(value: hoursPlayed, label: 'Hours Played', icon: Icons.access_time)),
                       ],
                     ),
                     const SizedBox(height: 20),
 
                     // Bio
-                    SteamSectionHeader(tr('bio')),
+                    const SteamSectionHeader('Bio'),
                     const SizedBox(height: 10),
                     Container(
                       width: double.infinity,
@@ -206,7 +206,7 @@ class ProfileScreen extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        userDescription.isEmpty ? tr('no_bio') : userDescription,
+                        userDescription.isEmpty ? 'No bio set. Tap edit to add one.' : userDescription,
                         style: GoogleFonts.rajdhani(
                           fontSize: 14,
                           color: userDescription.isEmpty ? kSteamSubtext : kSteamText,
@@ -227,7 +227,7 @@ class ProfileScreen extends ConsumerWidget {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                         ),
                         child: Text(
-                          tr('delete_account_btn'),
+                          'DELETE ACCOUNT',
                           style: GoogleFonts.rajdhani(color: kSteamRed, fontWeight: FontWeight.w700, letterSpacing: 1),
                         ),
                       ),
@@ -239,6 +239,34 @@ class ProfileScreen extends ConsumerWidget {
             },
             loading: () => const Center(child: CircularProgressIndicator(color: kSteamAccent)),
             error: (e, _) => Center(child: Text('Error: $e', style: GoogleFonts.rajdhani(color: kSteamRed))),
+          ),
+        ),
+      ),
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: kSteamDark,
+          border: Border(top: BorderSide(color: kSteamMed, width: 1)),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                GestureDetector(
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ChatbotScreen())),
+                  child: Container(
+                    width: 40, height: 40,
+                    decoration: BoxDecoration(
+                      color: kSteamMed,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: kSteamAccent.withValues(alpha: 0.5)),
+                    ),
+                    child: const Icon(Icons.smart_toy, color: kSteamAccent, size: 20),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

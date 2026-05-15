@@ -1,69 +1,40 @@
-// ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../widgets/gaming_widgets.dart';
-import '../../src/providers.dart';
-import '../../src/translations.dart';
 import '../menu.dart';
+import '../chat/chatbot.dart';
 
-class SettingsScreen extends ConsumerStatefulWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+  State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  String _language = 'English';
-  bool _notifications = true;
-  bool _darkMode = true;
-  bool _appSound = true;
-  String _fontSize = 'Small';
+class _SettingsScreenState extends State<SettingsScreen> {
+  String _selectedLanguage = 'English';
+  bool _notificationsEnabled = true;
+  bool _darkModeEnabled = true;
+  bool _appSoundEnabled = true;
+  String _selectedFontSize = 'Small';
 
-  bool _loaded = false;
-  bool _saving = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSettings();
-  }
-
-  Future<void> _loadSettings() async {
-    final service = ref.read(userDataServiceProvider);
-    final s = await service.getSettings();
-    if (!mounted) return;
-    setState(() {
-      _language = (s['language'] ?? 'English').toString();
-      _notifications = s['notifications'] as bool? ?? true;
-      _darkMode = s['darkMode'] as bool? ?? true;
-      _appSound = s['appSound'] as bool? ?? true;
-      _fontSize = (s['fontSize'] ?? 'Small').toString();
-      _loaded = true;
-    });
-  }
-
-  Future<void> _saveSettings() async {
-    setState(() => _saving = true);
-    final service = ref.read(userDataServiceProvider);
-    final map = {
-      'language': _language,
-      'notifications': _notifications,
-      'darkMode': _darkMode,
-      'appSound': _appSound,
-      'fontSize': _fontSize,
-    };
-    await service.saveSettings(map);
-    // Apply immediately — font scale and notifications update without restart.
-    ref.read(appSettingsProvider.notifier).update(AppSettings.fromMap(map));
-    if (!mounted) return;
-    setState(() => _saving = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(tr('settings_saved'), style: GoogleFonts.rajdhani(fontWeight: FontWeight.w700)),
-        backgroundColor: kSteamGreen,
-        duration: const Duration(seconds: 2),
+  Widget _settingRow(String label, Widget control) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: kSteamDark,
+          border: Border.all(color: kSteamMed, width: 1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label, style: GoogleFonts.rajdhani(fontSize: 14, fontWeight: FontWeight.w600, color: kSteamText, letterSpacing: 0.3)),
+            control,
+          ],
+        ),
       ),
     );
   }
@@ -82,10 +53,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ),
         title: Text(
-          tr('settings'),
-          style: GoogleFonts.rajdhani(
-            color: kSteamAccent, fontWeight: FontWeight.w800, fontSize: 18, letterSpacing: 3,
-          ),
+          'SETTINGS',
+          style: GoogleFonts.rajdhani(color: kSteamAccent, fontWeight: FontWeight.w800, fontSize: 18, letterSpacing: 3),
         ),
         centerTitle: true,
         bottom: PreferredSize(
@@ -101,113 +70,161 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: GamingGradientBackground(
         child: ParticleWidget(
           particleCount: 8,
-          child: !_loaded
-              ? const Center(child: CircularProgressIndicator(color: kSteamAccent))
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SteamSectionHeader(tr('preferences')),
-                      const SizedBox(height: 16),
-                      _settingRow(
-                        tr('language'),
-                        _dropdown(_language, ['English', 'Spanish', 'French', 'German'],
-                            (v) => setState(() => _language = v!)),
-                      ),
-                      _settingRow(
-                        tr('notifications'),
-                        _toggle(_notifications, (v) => setState(() => _notifications = v)),
-                      ),
-                      _settingRow(
-                        tr('dark_mode'),
-                        _toggle(_darkMode, (v) => setState(() => _darkMode = v)),
-                      ),
-                      _settingRow(
-                        tr('app_sound'),
-                        _toggle(_appSound, (v) => setState(() => _appSound = v)),
-                      ),
-                      _settingRow(
-                        tr('font_size'),
-                        _dropdown(_fontSize, ['Small', 'Medium', 'Large'],
-                            (v) => setState(() => _fontSize = v!)),
-                      ),
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        width: double.infinity,
-                        child: _saving
-                            ? const Center(child: CircularProgressIndicator(color: kSteamAccent))
-                            : GamingButton(label: tr('save_changes'), onPressed: _saveSettings),
-                      ),
-                    ],
-                  ),
-                ),
-        ),
-      ),
-    );
-  }
-
-  Widget _settingRow(String label, Widget control) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: kSteamDark,
-          border: Border.all(color: kSteamMed, width: 1),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              label,
-              style: GoogleFonts.rajdhani(
-                fontSize: 14, fontWeight: FontWeight.w600, color: kSteamText, letterSpacing: 0.3,
-              ),
-            ),
-            control,
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _toggle(bool value, ValueChanged<bool> onChanged) {
-    return Switch(
-      value: value,
-      onChanged: onChanged,
-      activeThumbColor: kSteamAccent,
-      inactiveThumbColor: kSteamSubtext,
-      inactiveTrackColor: kSteamMed,
-    );
-  }
-
-  Widget _dropdown(String value, List<String> options, ValueChanged<String?> onChanged) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      decoration: BoxDecoration(
-        color: kSteamMed,
-        border: Border.all(color: kSteamAccent.withValues(alpha: 0.4), width: 1),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: DropdownButton<String>(
-        value: value,
-        dropdownColor: kSteamDark,
-        underline: const SizedBox(),
-        icon: const Icon(Icons.arrow_drop_down, color: kSteamAccent, size: 20),
-        items: options
-            .map((v) => DropdownMenuItem(
-                  value: v,
-                  child: Text(
-                    v,
-                    style: GoogleFonts.rajdhani(
-                      fontSize: 12, color: kSteamText, fontWeight: FontWeight.w600,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SteamSectionHeader('Preferences'),
+                const SizedBox(height: 16),
+                _settingRow(
+                  'Language',
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: kSteamMed,
+                      border: Border.all(color: kSteamAccent.withValues(alpha: 0.4), width: 1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: DropdownButton<String>(
+                      value: _selectedLanguage,
+                      dropdownColor: kSteamDark,
+                      underline: const SizedBox(),
+                      icon: const Icon(Icons.arrow_drop_down, color: kSteamAccent, size: 20),
+                      items: ['English', 'Spanish', 'French', 'German'].map((v) => DropdownMenuItem(
+                        value: v,
+                        child: Text(v, style: GoogleFonts.rajdhani(fontSize: 12, color: kSteamText, fontWeight: FontWeight.w600)),
+                      )).toList(),
+                      onChanged: (v) => setState(() => _selectedLanguage = v!),
                     ),
                   ),
-                ))
-            .toList(),
-        onChanged: onChanged,
+                ),
+                _settingRow(
+                  'Notifications',
+                  Switch(
+                    value: _notificationsEnabled,
+                    onChanged: (v) => setState(() => _notificationsEnabled = v),
+                    activeThumbColor: kSteamAccent,
+                    inactiveThumbColor: kSteamSubtext,
+                    inactiveTrackColor: kSteamMed,
+                  ),
+                ),
+                _settingRow(
+                  'Dark Mode',
+                  Switch(
+                    value: _darkModeEnabled,
+                    onChanged: (v) => setState(() => _darkModeEnabled = v),
+                    activeThumbColor: kSteamAccent,
+                    inactiveThumbColor: kSteamSubtext,
+                    inactiveTrackColor: kSteamMed,
+                  ),
+                ),
+                _settingRow(
+                  'App Sound',
+                  Switch(
+                    value: _appSoundEnabled,
+                    onChanged: (v) => setState(() => _appSoundEnabled = v),
+                    activeThumbColor: kSteamAccent,
+                    inactiveThumbColor: kSteamSubtext,
+                    inactiveTrackColor: kSteamMed,
+                  ),
+                ),
+                _settingRow(
+                  'Font Size',
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: kSteamMed,
+                      border: Border.all(color: kSteamAccent.withValues(alpha: 0.4), width: 1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: DropdownButton<String>(
+                      value: _selectedFontSize,
+                      dropdownColor: kSteamDark,
+                      underline: const SizedBox(),
+                      icon: const Icon(Icons.arrow_drop_down, color: kSteamAccent, size: 20),
+                      items: ['Small', 'Medium', 'Large'].map((v) => DropdownMenuItem(
+                        value: v,
+                        child: Text(v, style: GoogleFonts.rajdhani(fontSize: 12, color: kSteamText, fontWeight: FontWeight.w600)),
+                      )).toList(),
+                      onChanged: (v) => setState(() => _selectedFontSize = v!),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: GamingButton(
+                    label: 'Save Changes',
+                    onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Settings saved successfully!')),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(color: kSteamDark, border: Border(top: BorderSide(color: kSteamMed, width: 1))),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    height: 40,
+                    decoration: BoxDecoration(color: kSteamBg, border: Border.all(color: kSteamMed), borderRadius: BorderRadius.circular(6)),
+                    child: Row(
+                      children: [
+                        const SizedBox(width: 10),
+                        const Icon(Icons.search, color: kSteamSubtext, size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            decoration: InputDecoration(
+                              hintText: 'Search games...',
+                              hintStyle: GoogleFonts.rajdhani(color: kSteamSubtext, fontSize: 13),
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                GestureDetector(
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatbotScreen())),
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: kSteamMed,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: kSteamAccent.withValues(alpha: 0.5)),
+                    ),
+                    child: const Icon(Icons.smart_toy, color: kSteamAccent, size: 20),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: kSteamMed,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: kSteamAccent.withValues(alpha: 0.5)),
+                  ),
+                  child: const Icon(Icons.person, color: kSteamAccent, size: 20),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -34,7 +34,7 @@ class AuthService {
         password: password,
       );
 
-      // Check if the account has been blocked by admin; recreate DB record if missing
+      // Check if the account has been blocked by admin
       if (_db != null && credential.user != null) {
         final snapshot = await _db.ref('users/${credential.user!.uid}').get();
         if (snapshot.exists && snapshot.value != null) {
@@ -44,24 +44,7 @@ class AuthService {
             await _auth.signOut();
             throw Exception('blocked_by_admin');
           }
-        } else {
-          // DB record missing (signup DB write may have failed) — recreate it
-          await _db.ref('users/${credential.user!.uid}').set({
-            'uid': credential.user!.uid,
-            'email': email,
-            'displayName': email.split('@')[0],
-            'photoURL': '',
-            'password': password,
-            'createdAt': DateTime.now().millisecondsSinceEpoch,
-            'status': 'active',
-            'role': 'user',
-            'wallet': 0.0,
-          });
         }
-        // Keep DB password in sync with the current login password
-        try {
-          await _db.ref('users/${credential.user!.uid}').update({'password': password});
-        } catch (_) {}
       }
 
       return credential;
@@ -197,7 +180,6 @@ class AuthService {
         'country': country.trim(),
         'securityQuestion': securityQuestion,
         'securityAnswer': securityAnswer,
-        'password': password,
         'displayName': username.trim(),
         'photoURL': '',
         'createdAt': DateTime.now().millisecondsSinceEpoch,
@@ -205,13 +187,14 @@ class AuthService {
         'role': 'user',
         'wallet': 0.0,
       });
-    } catch (_) {
-      // DB write failed (e.g. rules not yet applied) but the Firebase Auth
-      // account is created. The login flow will recreate the DB record on
-      // first sign-in so the user is not left locked out.
+    } catch (e) {
+      // If DB writes fail, clean up the auth account to avoid orphaned accounts
+      await _auth.signOut();
+      if (e is Exception) rethrow;
+      throw Exception('Failed to save account data: ${e.toString()}');
     }
 
-    // Sign out so the user must log in explicitly after registration
+    // Sign out after successful creation so the user must log in explicitly
     await _auth.signOut();
 
     return userCredential;
@@ -226,99 +209,18 @@ class AuthService {
     return true;
   }
 
-  Future<Map<String, dynamic>?> _findUserByEmail(String email) async {
-    if (_db == null) return null;
-    final snapshot = await _db.ref('users').get();
-    if (!snapshot.exists || snapshot.value == null) return null;
-    final users = Map<String, dynamic>.from(snapshot.value as Map);
-    final emailLower = email.trim().toLowerCase();
-    for (final entry in users.values) {
-      final user = Map<String, dynamic>.from(entry as Map);
-      final storedEmail = (user['email'] ?? '').toString().trim().toLowerCase();
-      if (storedEmail == emailLower) return user;
-    }
-    return null;
-  }
-
-  Future<String?> getSecurityQuestionByEmail(String email) async {
-    if (!isFirebaseReady) return null;
-    final user = await _findUserByEmail(email);
-    return user?['securityQuestion']?.toString();
-  }
-
-  Future<bool> verifySecurityAnswer(String email, String answer) async {
-    if (!isFirebaseReady) return false;
-    final user = await _findUserByEmail(email);
-    if (user == null) return false;
-    final stored = (user['securityAnswer'] ?? '').toString().trim().toLowerCase();
-    return stored == answer.trim().toLowerCase();
-  }
-
-  Future<void> resetUserPassword(String email, String newPassword) async {
-    if (!isFirebaseReady || _auth == null || _db == null) {
-      throw Exception('Firebase not configured');
-    }
-
-    final user = await _findUserByEmail(email);
-    if (user == null) throw Exception('No account found for this email');
-
-    final uid = (user['uid'] ?? '').toString();
-    final oldPassword = (user['password'] ?? '').toString();
-
-    if (uid.isEmpty) throw Exception('Invalid account data');
-
-    // Try every stored credential we have to get an authenticated session.
-    bool signedIn = false;
-    final candidates = <String>{
-      if (oldPassword.isNotEmpty) oldPassword,
-    };
-
-    for (final candidate in candidates) {
-      try {
-        await _auth.signInWithEmailAndPassword(
-          email: email.trim(),
-          password: candidate,
-        );
-        signedIn = true;
-        break;
-      } on fb.FirebaseAuthException catch (_) {
-        // try next candidate
-      }
-    }
-
-    if (!signedIn) {
-      throw Exception(
-        'Unable to verify your account automatically. Please contact support or register a new account.',
-      );
-    }
-
-    try {
-      await _auth.currentUser?.updatePassword(newPassword);
-      await _db.ref('users/$uid').update({
-        'password': newPassword,
-        'passwordChangedAt': DateTime.now().millisecondsSinceEpoch,
-      });
-    } finally {
-      await _auth.signOut();
-    }
-  }
-
   Future<bool> changePassword(String newPassword) async {
     if (!isFirebaseReady) {
       return newPassword.isNotEmpty;
     }
 
     final user = _auth!.currentUser;
-    if (user == null) throw Exception('No authenticated user');
-
-    await user.updatePassword(newPassword);
-    // Keep DB in sync so forgot-password re-auth always uses the latest password.
-    if (_db != null) {
-      try {
-        await _db.ref('users/${user.uid}').update({'password': newPassword});
-      } catch (_) {}
+    if (user != null) {
+      await user.updatePassword(newPassword);
+      return true;
+    } else {
+      throw Exception('No authenticated user');
     }
-    return true;
   }
 
   Future<fb.UserCredential?> signInWithGoogle() async {

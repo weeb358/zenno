@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
 
@@ -80,33 +79,8 @@ class AdminService {
     await _db.ref('users/$uid/status').set(status);
   }
 
-  // Delete user — also removes the Firebase Auth account so the email can be reused
-  Future<void> deleteUser(String uid, {String? email, String? storedPassword}) async {
-    // Use a secondary Firebase app so the admin session is not affected
-    if (email != null && storedPassword != null && storedPassword.isNotEmpty) {
-      const secondaryName = '_zenno_user_deletion';
-      FirebaseApp? secondary;
-      try {
-        try {
-          secondary = Firebase.app(secondaryName);
-        } catch (_) {
-          secondary = await Firebase.initializeApp(
-            name: secondaryName,
-            options: Firebase.app().options,
-          );
-        }
-        final secondaryAuth = FirebaseAuth.instanceFor(app: secondary);
-        await secondaryAuth.signInWithEmailAndPassword(
-          email: email,
-          password: storedPassword,
-        );
-        await secondaryAuth.currentUser?.delete();
-      } catch (e) {
-        debugPrint('Firebase Auth account deletion skipped: $e');
-      } finally {
-        try { await secondary?.delete(); } catch (_) {}
-      }
-    }
+  // Delete user
+  Future<void> deleteUser(String uid) async {
     await _db.ref('users/$uid').remove();
   }
 
@@ -174,76 +148,6 @@ class AdminService {
               })
           .toList();
     });
-  }
-
-  // ── Admin Settings ────────────────────────────────────────────────────────
-  Future<Map<String, dynamic>> getAdminSettings() async {
-    try {
-      final snap = await _db.ref('adminSettings').get();
-      if (!snap.exists || snap.value == null) return {};
-      return Map<String, dynamic>.from(snap.value as Map);
-    } catch (_) {
-      return {};
-    }
-  }
-
-  Future<void> saveAdminSettings(Map<String, dynamic> settings) async {
-    await _db.ref('adminSettings').update(settings);
-  }
-
-  Stream<Map<String, dynamic>> getAdminSettingsStream() {
-    return _db.ref('adminSettings').onValue.map((event) {
-      if (event.snapshot.value == null) return <String, dynamic>{};
-      return Map<String, dynamic>.from(event.snapshot.value as Map);
-    });
-  }
-
-  Future<void> clearAllNotifications() async {
-    await _db.ref('notifications').remove();
-  }
-
-  Future<int> resetSuspendedUsers() async {
-    final users = await getAllUsers();
-    int count = 0;
-    for (final user in users) {
-      final uid = (user['uid'] ?? '').toString();
-      final status = (user['status'] ?? 'active').toString();
-      if (uid.isNotEmpty && (status == 'suspended' || status == 'banned')) {
-        await _db.ref('users/$uid/status').set('active');
-        count++;
-      }
-    }
-    return count;
-  }
-
-  Future<Map<String, dynamic>> getStoreStatistics() async {
-    try {
-      final snap = await _db.ref('users').get()
-          .timeout(const Duration(seconds: 5));
-      if (!snap.exists || snap.value == null) {
-        return {'totalPurchases': 0, 'totalWalletBalance': 0.0, 'totalCards': 0};
-      }
-      final users = Map<String, dynamic>.from(snap.value as Map);
-      int totalPurchases = 0;
-      double totalWallet = 0.0;
-      int totalCards = 0;
-      for (final entry in users.entries) {
-        final u = Map<String, dynamic>.from(entry.value as Map? ?? {});
-        final purchases = u['purchases'] as Map?;
-        final cards = u['cards'] as Map?;
-        final wallet = (u['wallet'] as num?) ?? 0;
-        totalPurchases += purchases?.length ?? 0;
-        totalCards += cards?.length ?? 0;
-        totalWallet += wallet.toDouble();
-      }
-      return {
-        'totalPurchases': totalPurchases,
-        'totalWalletBalance': totalWallet,
-        'totalCards': totalCards,
-      };
-    } catch (_) {
-      return {'totalPurchases': 0, 'totalWalletBalance': 0.0, 'totalCards': 0};
-    }
   }
 
   // Get user statistics (total users, active users, etc.)

@@ -1,11 +1,8 @@
-// ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:zenno/widgets/gaming_widgets.dart';
-import 'package:zenno/src/providers.dart';
-import 'package:zenno/src/translations.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -15,128 +12,13 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  String _language = 'English';
-  bool _notifications = true;
-  bool _darkMode = true;
-  bool _appSound = true;
-  String _fontSize = 'Small';
+  bool _notificationsEnabled = true;
+  bool _soundEnabled = true;
+  bool _vibrationEnabled = true;
 
-  bool _loaded = false;
-  bool _saving = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSettings();
-  }
-
-  Future<void> _loadSettings() async {
-    final service = ref.read(userDataServiceProvider);
-    final s = await service.getSettings();
-    if (!mounted) return;
-    setState(() {
-      _language = (s['language'] ?? 'English').toString();
-      _notifications = s['notifications'] as bool? ?? true;
-      _darkMode = s['darkMode'] as bool? ?? true;
-      _appSound = s['appSound'] as bool? ?? true;
-      _fontSize = (s['fontSize'] ?? 'Small').toString();
-      _loaded = true;
-    });
-  }
-
-  Future<void> _saveSettings() async {
-    setState(() => _saving = true);
-    final service = ref.read(userDataServiceProvider);
-    final map = {
-      'language': _language,
-      'notifications': _notifications,
-      'darkMode': _darkMode,
-      'appSound': _appSound,
-      'fontSize': _fontSize,
-    };
-    await service.saveSettings(map);
-    ref.read(appSettingsProvider.notifier).update(AppSettings.fromMap(map));
-    if (!mounted) return;
-    setState(() => _saving = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(tr('settings_saved'), style: GoogleFonts.rajdhani(fontWeight: FontWeight.w700)),
-        backgroundColor: kSteamGreen,
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: kSteamBg,
-      appBar: GamingAppBar(title: tr('settings')),
-      body: GamingGradientBackground(
-        child: ParticleWidget(
-          particleCount: 8,
-          child: SafeArea(
-            child: !_loaded
-                ? const Center(child: CircularProgressIndicator(color: kSteamAccent))
-                : SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SteamSectionHeader(tr('preferences')),
-                        const SizedBox(height: 12),
-                        _settingRow(
-                          tr('language'),
-                          _dropdown(_language, ['English', 'Spanish', 'French', 'German'],
-                              (v) => setState(() => _language = v!)),
-                        ),
-                        _settingRow(
-                          tr('notifications'),
-                          _toggle(_notifications, (v) => setState(() => _notifications = v)),
-                        ),
-                        _settingRow(
-                          tr('dark_mode'),
-                          _toggle(_darkMode, (v) => setState(() => _darkMode = v)),
-                        ),
-                        _settingRow(
-                          tr('app_sound'),
-                          _toggle(_appSound, (v) => setState(() => _appSound = v)),
-                        ),
-                        _settingRow(
-                          tr('font_size'),
-                          _dropdown(_fontSize, ['Small', 'Medium', 'Large'],
-                              (v) => setState(() => _fontSize = v!)),
-                        ),
-                        const SizedBox(height: 4),
-                        SizedBox(
-                          width: double.infinity,
-                          child: _saving
-                              ? const Center(child: CircularProgressIndicator(color: kSteamAccent))
-                              : GamingButton(label: tr('save_changes'), onPressed: _saveSettings),
-                        ),
-                        const SizedBox(height: 24),
-                        SteamSectionHeader(tr('account')),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: GamingButton(
-                            label: tr('change_password'),
-                            onPressed: () => context.push('/change-password'),
-                            color: kSteamAccent,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _settingRow(String label, Widget control) {
+  Widget _settingToggle(String label, bool value, ValueChanged<bool> onChanged) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 10),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
@@ -147,52 +29,54 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              label,
-              style: GoogleFonts.rajdhani(
-                fontSize: 14, fontWeight: FontWeight.w600, color: kSteamText,
-              ),
+            Text(label, style: GoogleFonts.rajdhani(fontSize: 14, color: kSteamText, fontWeight: FontWeight.w600)),
+            Switch(
+              value: value,
+              onChanged: onChanged,
+              activeThumbColor: kSteamAccent,
+              inactiveThumbColor: kSteamSubtext,
+              inactiveTrackColor: kSteamMed,
             ),
-            control,
           ],
         ),
       ),
     );
   }
 
-  Widget _toggle(bool value, ValueChanged<bool> onChanged) {
-    return Switch(
-      value: value,
-      onChanged: onChanged,
-      activeThumbColor: kSteamAccent,
-      inactiveThumbColor: kSteamSubtext,
-      inactiveTrackColor: kSteamMed,
-    );
-  }
-
-  Widget _dropdown(String value, List<String> options, ValueChanged<String?> onChanged) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      decoration: BoxDecoration(
-        color: kSteamMed,
-        border: Border.all(color: kSteamAccent.withValues(alpha: 0.4), width: 1),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: DropdownButton<String>(
-        value: value,
-        dropdownColor: kSteamDark,
-        underline: const SizedBox(),
-        icon: const Icon(Icons.arrow_drop_down, color: kSteamAccent, size: 20),
-        items: options
-            .map((v) => DropdownMenuItem(
-                  value: v,
-                  child: Text(
-                    v,
-                    style: GoogleFonts.rajdhani(fontSize: 12, color: kSteamText, fontWeight: FontWeight.w600),
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: kSteamBg,
+      appBar: GamingAppBar(title: 'SETTINGS'),
+      body: GamingGradientBackground(
+        child: ParticleWidget(
+          particleCount: 8,
+          child: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SteamSectionHeader('Notification Settings'),
+                  const SizedBox(height: 12),
+                  _settingToggle('Enable Notifications', _notificationsEnabled, (v) => setState(() => _notificationsEnabled = v)),
+                  _settingToggle('Sound Effects', _soundEnabled, (v) => setState(() => _soundEnabled = v)),
+                  _settingToggle('Vibration', _vibrationEnabled, (v) => setState(() => _vibrationEnabled = v)),
+                  const SizedBox(height: 20),
+                  const SteamSectionHeader('Account Settings'),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: GamingButton(
+                      label: 'CHANGE PASSWORD',
+                      onPressed: () => context.push('/change-password'),
+                    ),
                   ),
-                ))
-            .toList(),
-        onChanged: onChanged,
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:zenno/src/providers.dart';
 import '../widgets/gaming_widgets.dart';
-import '../src/translations.dart';
 import 'homescreen.dart';
 import 'notifications.dart';
 import 'upcoming_games.dart';
@@ -17,12 +16,12 @@ import 'menu_items/feedback.dart';
 class MenuScreen extends ConsumerWidget {
   const MenuScreen({super.key});
 
-  static const _menuItemKeys = [
-    {'icon': Icons.collections_bookmark, 'label': 'Library', 'labelKey': 'library', 'subKey': 'library_sub'},
-    {'icon': Icons.receipt_long, 'label': 'History', 'labelKey': 'history_menu', 'subKey': 'history_sub'},
-    {'icon': Icons.settings, 'label': 'Settings', 'labelKey': 'settings_menu', 'subKey': 'settings_sub'},
-    {'icon': Icons.headset_mic, 'label': 'Support', 'labelKey': 'support', 'subKey': 'support_sub'},
-    {'icon': Icons.feedback_outlined, 'label': 'Feedback', 'labelKey': 'feedback', 'subKey': 'feedback_sub'},
+  static const _menuItems = [
+    {'icon': Icons.collections_bookmark, 'label': 'Library', 'sub': 'Your purchased games'},
+    {'icon': Icons.receipt_long, 'label': 'History', 'sub': 'Purchase history'},
+    {'icon': Icons.settings, 'label': 'Settings', 'sub': 'App preferences'},
+    {'icon': Icons.headset_mic, 'label': 'Support', 'sub': 'Get help'},
+    {'icon': Icons.feedback_outlined, 'label': 'Feedback', 'sub': 'Share your thoughts'},
   ];
 
   @override
@@ -36,17 +35,22 @@ class MenuScreen extends ConsumerWidget {
           elevation: 0,
           automaticallyImplyLeading: false,
           flexibleSpace: Container(
-            decoration: const BoxDecoration(),
+            decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: kSteamMed, width: 1))),
             child: SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _navIcon(context, Icons.home_rounded, () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const Homescreen()))),
-                    _navIcon(context, Icons.notifications_outlined, () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const NotificationsScreen()))),
-                    _navIcon(context, Icons.grid_view_rounded, () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const UpcomingGamesScreen()))),
-                    _navIcon(context, Icons.menu_rounded, null, active: true),
+                    Text('ZENNO', style: GoogleFonts.rajdhani(color: kSteamAccent, fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: 4)),
+                    Row(
+                      children: [
+                        _navIcon(context, Icons.home, () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const Homescreen()))),
+                        _navIcon(context, Icons.notifications_outlined, () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const NotificationsScreen()))),
+                        _navIcon(context, Icons.view_agenda_outlined, () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const UpcomingGamesScreen()))),
+                        _navIcon(context, Icons.menu, null, active: true),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -62,9 +66,9 @@ class MenuScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SteamSectionHeader(tr('navigation')),
+                const SteamSectionHeader('Navigation'),
                 const SizedBox(height: 16),
-                ..._menuItemKeys.map((item) => Padding(
+                ..._menuItems.map((item) => Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: GestureDetector(
                     onTap: () => _navigate(context, item['label'] as String, ref),
@@ -94,11 +98,11 @@ class MenuScreen extends ConsumerWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    tr(item['labelKey'] as String),
+                                    item['label'] as String,
                                     style: GoogleFonts.rajdhani(color: kSteamText, fontSize: 15, fontWeight: FontWeight.w700),
                                   ),
                                   Text(
-                                    tr(item['subKey'] as String),
+                                    item['sub'] as String,
                                     style: GoogleFonts.rajdhani(color: kSteamSubtext, fontSize: 12),
                                   ),
                                 ],
@@ -139,8 +143,8 @@ class MenuScreen extends ConsumerWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(tr('sign_out'), style: GoogleFonts.rajdhani(color: kSteamRed, fontSize: 15, fontWeight: FontWeight.w700)),
-                                Text(tr('sign_out_sub'), style: GoogleFonts.rajdhani(color: kSteamSubtext, fontSize: 12)),
+                                Text('Sign Out', style: GoogleFonts.rajdhani(color: kSteamRed, fontSize: 15, fontWeight: FontWeight.w700)),
+                                Text('Log out of your account', style: GoogleFonts.rajdhani(color: kSteamSubtext, fontSize: 12)),
                               ],
                             ),
                           ),
@@ -149,6 +153,48 @@ class MenuScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(color: kSteamDark, border: Border(top: BorderSide(color: kSteamMed, width: 1))),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    height: 40,
+                    decoration: BoxDecoration(color: kSteamBg, border: Border.all(color: kSteamMed), borderRadius: BorderRadius.circular(6)),
+                    child: Row(
+                      children: [
+                        const SizedBox(width: 10),
+                        const Icon(Icons.search, color: kSteamSubtext, size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            decoration: InputDecoration(
+                              hintText: 'Search games...',
+                              hintStyle: GoogleFonts.rajdhani(color: kSteamSubtext, fontSize: 13),
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(color: kSteamMed, shape: BoxShape.circle, border: Border.all(color: kSteamAccent.withValues(alpha: 0.5))),
+                  child: const Icon(Icons.person, color: kSteamAccent, size: 20),
                 ),
               ],
             ),
@@ -183,15 +229,9 @@ class MenuScreen extends ConsumerWidget {
   static Widget _navIcon(BuildContext context, IconData icon, VoidCallback? onTap, {bool active = false}) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 2),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: active ? kSteamMed : Colors.transparent,
-          border: active ? Border.all(color: kSteamAccent.withValues(alpha: 0.4), width: 1) : null,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(icon, color: active ? kSteamAccent : kSteamSubtext, size: 22),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        child: Icon(icon, color: active ? kSteamAccent : kSteamSubtext, size: 24),
       ),
     );
   }

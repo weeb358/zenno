@@ -26,10 +26,6 @@ import 'package:zenno/screen/admin/admin_users.dart';
 import 'package:zenno/screen/admin/admin_games.dart';
 import 'package:zenno/screen/admin/admin_add_game.dart';
 import 'package:zenno/screen/admin/admin_edit_game.dart';
-import 'package:zenno/screen/admin/admin_upcoming_games.dart';
-import 'package:zenno/screen/admin/admin_add_upcoming_game.dart';
-import 'package:zenno/screen/admin/admin_notifications.dart';
-import 'package:zenno/screen/admin/admin_settings.dart';
 import 'package:zenno/screen/cart/cart_screen.dart';
 
 final GoRouter router = GoRouter(
@@ -168,32 +164,6 @@ final GoRouter router = GoRouter(
       builder: (context, state) => AdminEditGameScreen(
         gameId: state.pathParameters['gameId'] ?? '',
       ),
-    ),
-    GoRoute(
-      path: '/admin-upcoming-games',
-      builder: (context, state) => const AdminUpcomingGamesScreen(),
-    ),
-    GoRoute(
-      path: '/admin-add-upcoming-game',
-      builder: (context, state) => const AdminAddUpcomingGameScreen(),
-    ),
-    GoRoute(
-      path: '/admin-edit-upcoming-game/:id',
-      builder: (context, state) {
-        final extra = state.extra as Map<String, dynamic>?;
-        return AdminAddUpcomingGameScreen(
-          gameId: state.pathParameters['id'] ?? '',
-          existingData: extra,
-        );
-      },
-    ),
-    GoRoute(
-      path: '/admin-notifications',
-      builder: (context, state) => const AdminNotificationsScreen(),
-    ),
-    GoRoute(
-      path: '/admin-settings',
-      builder: (context, state) => const AdminSettingsScreen(),
     ),
   ],
 );

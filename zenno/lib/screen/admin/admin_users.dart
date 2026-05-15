@@ -73,20 +73,16 @@ class AdminUsersScreen extends ConsumerWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline, color: kSteamRed, size: 48),
+                    const Icon(Icons.group_off, color: kSteamSubtext, size: 48),
                     const SizedBox(height: 16),
                     Text(
-                      'Could not load users',
+                      'No users yet',
                       style: GoogleFonts.rajdhani(color: kSteamText, fontSize: 16, fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 8),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      child: Text(
-                        e.toString(),
-                        style: GoogleFonts.rajdhani(color: kSteamRed, fontSize: 12),
-                        textAlign: TextAlign.center,
-                      ),
+                    Text(
+                      'Users who sign up will appear here',
+                      style: GoogleFonts.rajdhani(color: kSteamSubtext, fontSize: 13),
                     ),
                   ],
                 ),
@@ -101,7 +97,6 @@ class AdminUsersScreen extends ConsumerWidget {
   Widget _buildUserRow(BuildContext context, Map<String, dynamic> user, WidgetRef ref) {
     final displayName = (user['displayName'] ?? user['username'] ?? 'Unknown User').toString();
     final email = (user['email'] ?? 'No email').toString();
-    final storedPassword = (user['password'] ?? '').toString();
     final status = (user['status'] ?? 'active').toString();
     final uid = (user['uid'] ?? '').toString();
     final isBlocked = status == 'suspended' || status == 'banned';
@@ -175,7 +170,7 @@ class AdminUsersScreen extends ConsumerWidget {
               ),
             ),
             GestureDetector(
-              onTap: () => _showDeleteDialog(context, uid, displayName, email, storedPassword, ref),
+              onTap: () => _showDeleteDialog(context, uid, displayName, ref),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
@@ -210,7 +205,7 @@ class AdminUsersScreen extends ConsumerWidget {
     }
   }
 
-  void _showDeleteDialog(BuildContext context, String uid, String userName, String email, String storedPassword, WidgetRef ref) {
+  void _showDeleteDialog(BuildContext context, String uid, String userName, WidgetRef ref) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -234,11 +229,7 @@ class AdminUsersScreen extends ConsumerWidget {
           TextButton(
             onPressed: () async {
               try {
-                await ref.read(adminServiceProvider).deleteUser(
-                  uid,
-                  email: email,
-                  storedPassword: storedPassword,
-                );
+                await ref.read(adminServiceProvider).deleteUser(uid);
                 if (context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(

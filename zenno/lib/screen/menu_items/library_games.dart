@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../widgets/gaming_widgets.dart';
-import '../../src/providers.dart';
 import '../menu.dart';
 import '../game_description.dart';
+import '../chat/chatbot.dart';
 
-class LibraryGamesScreen extends ConsumerWidget {
+class LibraryGamesScreen extends StatelessWidget {
   const LibraryGamesScreen({super.key});
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final purchasesAsync = ref.watch(purchaseHistoryStreamProvider);
-    final gamesAsync = ref.watch(gamesStreamProvider);
+  static const _libraryGames = [
+    {'name': 'Cyber Nomad', 'price': '\$29.99', 'genre': 'Action'},
+    {'name': 'Shadow Realm', 'price': '\$39.99', 'genre': 'RPG'},
+    {'name': 'Neon Racers', 'price': '\$19.99', 'genre': 'Racing'},
+    {'name': 'Void Protocol', 'price': '\$49.99', 'genre': 'Strategy'},
+  ];
 
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kSteamBg,
       appBar: AppBar(
@@ -27,8 +30,7 @@ class LibraryGamesScreen extends ConsumerWidget {
         ),
         title: Text(
           'GAMES LIBRARY',
-          style: GoogleFonts.rajdhani(
-              color: kSteamAccent, fontWeight: FontWeight.w800, fontSize: 18, letterSpacing: 3),
+          style: GoogleFonts.rajdhani(color: kSteamAccent, fontWeight: FontWeight.w800, fontSize: 18, letterSpacing: 3),
         ),
         centerTitle: true,
         bottom: PreferredSize(
@@ -36,8 +38,7 @@ class LibraryGamesScreen extends ConsumerWidget {
           child: Container(
             height: 1,
             decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                  colors: [Colors.transparent, kSteamAccent, Colors.transparent]),
+              gradient: LinearGradient(colors: [Colors.transparent, kSteamAccent, Colors.transparent]),
             ),
           ),
         ),
@@ -45,213 +46,162 @@ class LibraryGamesScreen extends ConsumerWidget {
       body: GamingGradientBackground(
         child: ParticleWidget(
           particleCount: 8,
-          child: purchasesAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator(color: kSteamAccent)),
-            error: (e, _) => Center(
-              child: Text('Error: $e', style: GoogleFonts.rajdhani(color: kSteamRed, fontSize: 13)),
-            ),
-            data: (purchases) {
-              if (purchases.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.collections_bookmark, color: kSteamSubtext, size: 52),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No games purchased yet',
-                        style: GoogleFonts.rajdhani(color: kSteamText, fontSize: 16, fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Buy a game to see it here',
-                        style: GoogleFonts.rajdhani(color: kSteamSubtext, fontSize: 13),
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              final allGames = gamesAsync.valueOrNull ?? [];
-
-              return SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SteamSectionHeader('Your Library'),
-                    const SizedBox(height: 16),
-                    ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: purchases.length,
-                      itemBuilder: (context, index) {
-                        final purchase = purchases[index];
-                        final name = (purchase['name'] ?? '').toString();
-                        final price = (purchase['price'] ?? '').toString();
-
-                        // Find matching full game data for banner image etc.
-                        final gameData = allGames.firstWhere(
-                          (g) => (g['name'] ?? '').toString().toLowerCase() == name.toLowerCase(),
-                          orElse: () => <String, dynamic>{},
-                        );
-                        final bannerUrl = (gameData['bannerUrl'] ?? '').toString();
-                        final gameId = (gameData['id'] ?? name).toString();
-
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: Dismissible(
-                            key: Key(purchase['id']?.toString() ?? name),
-                            direction: DismissDirection.endToStart,
-                            onDismissed: (_) {
-                              final purchaseId = purchase['id']?.toString() ?? '';
-                              if (purchaseId.isNotEmpty) {
-                                ref.read(userDataServiceProvider).removeFromLibrary(purchaseId);
-                              }
-                            },
-                            background: Container(
-                              alignment: Alignment.centerRight,
-                              padding: const EdgeInsets.only(right: 20),
-                              decoration: BoxDecoration(
-                                color: kSteamRed.withValues(alpha: 0.85),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(Icons.delete_outline, color: Colors.white, size: 26),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SteamSectionHeader('Your Library'),
+                const SizedBox(height: 16),
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _libraryGames.length,
+                  itemBuilder: (context, index) {
+                    final game = _libraryGames[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: GestureDetector(
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => GameDescriptionScreen(
+                              gameName: game['name']!,
+                              gamePrice: game['price']!,
                             ),
-                            child: GestureDetector(
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => GameDescriptionScreen(
-                                  gameName: name,
-                                  gamePrice: price,
-                                  gameId: gameId,
-                                  gameData: gameData.isNotEmpty ? gameData : null,
-                                  isPurchased: true,
+                          ),
+                        ),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: kSteamDark,
+                            border: Border.all(color: kSteamMed, width: 1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 90,
+                                height: 80,
+                                decoration: const BoxDecoration(
+                                  color: kSteamMed,
+                                  borderRadius: BorderRadius.only(
+                                    topLeft: Radius.circular(8),
+                                    bottomLeft: Radius.circular(8),
+                                  ),
+                                ),
+                                child: const Icon(Icons.videogame_asset, color: kSteamSubtext, size: 28),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        game['name']!.toUpperCase(),
+                                        style: GoogleFonts.rajdhani(color: kSteamText, fontSize: 14, fontWeight: FontWeight.w700, letterSpacing: 0.5),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        game['genre']!,
+                                        style: GoogleFonts.rajdhani(color: kSteamSubtext, fontSize: 11),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        game['price']!,
+                                        style: GoogleFonts.rajdhani(color: kSteamGreen, fontSize: 13, fontWeight: FontWeight.w700),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
-                            ),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: kSteamDark,
-                                border: Border.all(color: kSteamMed, width: 1),
-                                borderRadius: BorderRadius.circular(8),
+                              Padding(
+                                padding: const EdgeInsets.only(right: 12),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: kSteamAccent, width: 1.5),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    'PLAY',
+                                    style: GoogleFonts.rajdhani(color: kSteamAccent, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1),
+                                  ),
+                                ),
                               ),
-                              child: Row(
-                                children: [
-                                  // Banner thumbnail
-                                  ClipRRect(
-                                    borderRadius: const BorderRadius.only(
-                                      topLeft: Radius.circular(7),
-                                      bottomLeft: Radius.circular(7),
-                                    ),
-                                    child: SizedBox(
-                                      width: 90,
-                                      height: 75,
-                                      child: bannerUrl.isNotEmpty
-                                          ? Image.network(
-                                              bannerUrl,
-                                              fit: BoxFit.cover,
-                                              errorBuilder: (ctx, err, st) => _placeholder(),
-                                            )
-                                          : _placeholder(),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            name.toUpperCase(),
-                                            style: GoogleFonts.rajdhani(
-                                                color: kSteamText,
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w700,
-                                                letterSpacing: 0.5),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          const SizedBox(height: 5),
-                                          Row(
-                                            children: [
-                                              const Icon(Icons.check_circle, color: kSteamGreen, size: 13),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                'Purchased',
-                                                style: GoogleFonts.rajdhani(
-                                                    color: kSteamGreen, fontSize: 12, fontWeight: FontWeight.w600),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  GestureDetector(
-                                    onTap: () async {
-                                      final confirm = await showDialog<bool>(
-                                        context: context,
-                                        builder: (ctx) => AlertDialog(
-                                          backgroundColor: kSteamDark,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(10),
-                                            side: const BorderSide(color: kSteamMed),
-                                          ),
-                                          title: Text('Remove from Library',
-                                              style: GoogleFonts.rajdhani(color: kSteamText, fontWeight: FontWeight.w700, fontSize: 16)),
-                                          content: Text(
-                                            'Remove "$name" from your library?',
-                                            style: GoogleFonts.rajdhani(color: kSteamSubtext, fontSize: 13),
-                                          ),
-                                          actions: [
-                                            TextButton(
-                                              onPressed: () => Navigator.pop(ctx, false),
-                                              child: Text('CANCEL', style: GoogleFonts.rajdhani(color: kSteamSubtext, fontWeight: FontWeight.w700)),
-                                            ),
-                                            TextButton(
-                                              onPressed: () => Navigator.pop(ctx, true),
-                                              child: Text('REMOVE', style: GoogleFonts.rajdhani(color: kSteamRed, fontWeight: FontWeight.w700)),
-                                            ),
-                                          ],
-                                        ),
-                                      ) ?? false;
-                                      if (confirm) {
-                                        final purchaseId = purchase['id']?.toString() ?? '';
-                                        if (purchaseId.isNotEmpty) {
-                                          ref.read(userDataServiceProvider).removeFromLibrary(purchaseId);
-                                        }
-                                      }
-                                    },
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                                      child: Icon(Icons.delete_outline, color: kSteamRed.withValues(alpha: 0.8), size: 22),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+                            ],
                           ),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
+                        ),
+                      ),
+                    );
+                  },
                 ),
-              );
-            },
+              ],
+            ),
           ),
         ),
       ),
-    );
-  }
-
-  Widget _placeholder() {
-    return Container(
-      color: kSteamMed,
-      child: const Icon(Icons.videogame_asset, color: kSteamSubtext, size: 28),
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(color: kSteamDark, border: Border(top: BorderSide(color: kSteamMed, width: 1))),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    height: 40,
+                    decoration: BoxDecoration(color: kSteamBg, border: Border.all(color: kSteamMed), borderRadius: BorderRadius.circular(6)),
+                    child: Row(
+                      children: [
+                        const SizedBox(width: 10),
+                        const Icon(Icons.search, color: kSteamSubtext, size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            decoration: InputDecoration(
+                              hintText: 'Search library...',
+                              hintStyle: GoogleFonts.rajdhani(color: kSteamSubtext, fontSize: 13),
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                GestureDetector(
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatbotScreen())),
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: kSteamMed,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: kSteamAccent.withValues(alpha: 0.5)),
+                    ),
+                    child: const Icon(Icons.smart_toy, color: kSteamAccent, size: 20),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: kSteamMed,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: kSteamAccent.withValues(alpha: 0.5)),
+                  ),
+                  child: const Icon(Icons.person, color: kSteamAccent, size: 20),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
